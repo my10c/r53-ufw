@@ -1,0 +1,80 @@
+Note: replace XXXXXXXXXXXXX with the correct zone_id
+
+ReadOnly 
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ListHostedZones"
+            ],
+            "Resource": "arn:aws:route53:::hostedzone/*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ListHostedZonesByName",
+				"iam:GetUser"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ChangeResourceRecordSets*",
+                "route53:ListResourceRecordSets",
+                "route53:Get*",
+                "route53:List*"
+            ],
+            "Resource": "arn:aws:route53:::hostedzone/XXXXXXXXXXXXX"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:GetChange"
+            ],
+            "Resource": "arn:aws:route53:::change/*"
+        }
+    ]
+}
+
+
+ReadWrite
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ListHostedZones"
+            ],
+            "Resource": "arn:aws:route53:::hostedzone/*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ListHostedZonesByName",
+				"iam:GetUser"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ChangeResourceRecordSets*",
+                "route53:ListResourceRecordSets",
+                "route53:Get*",
+                "route53:List*"
+            ],
+            "Resource": "arn:aws:route53:::hostedzone/XXXXXXXXXXXXX"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:GetChange"
+            ],
+            "Resource": "arn:aws:route53:::change/*"
+        }
+    ]
+}
