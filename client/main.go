@@ -30,13 +30,14 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.1
+// Version		:	0.2
 //
-// Date			:	Jan 3, 2017
+// Date			:	Jan 5, 2017
 //
 // History	:
-// 	Date:			Author:			Info:
-//	Jan 3, 2017		LIS				First Release
+// 	Date:			Author:		Info:
+//	Jan 3, 2017		LIS			First Release
+//	Jan 5, 2017		LIS			Added support for --profile
 //
 
 package main
@@ -57,6 +58,7 @@ var (
 	logfile string = "/tmp/alibaba.out"
 	configName string = "route53"
 	configPath string = "$HOME/.aws"
+	profileName string = "r53-ufw"
 	zoneName string
 	zoneID string
 	r53TxtRec bool = false
@@ -76,9 +78,9 @@ func main() {
 
 	// initialization
 	initialze.InitLog(logfile)
-	zoneName, zoneID := initialze.GetConfig(configName, configPath)
-	r53TxtRec, r53Action, r53RecName, r53RecValue := initialze.InitArgs()
-	mySess, aimUserName := initialze.InitSession("r53-ufw", zoneName)
+	r53TxtRec, r53Action, r53RecName, r53RecValue, profileName := initialze.InitArgs(profileName)
+	zoneName, zoneID := initialze.GetConfig(profileName,configName, configPath)
+	mySess, aimUserName := initialze.InitSession(profileName, zoneName)
 
 	if r53Action == "list" {
 		r53cmds.FindRecords(mySess, zoneID, r53RecName)
@@ -93,8 +95,9 @@ func main() {
 	resultARec = r53cmds.SearchRecord(mySess, zoneID, zoneName, r53RecName, route53.RRTypeA)
 
 	// just for debug, need to set debug tp true and then recompile
-	var debug bool = false
+	var debug bool = true
 	if debug == true {
+		fmt.Printf("profileName		: %s\n", profileName)
 		fmt.Printf("zoneName		: %s\n", zoneName)
 		fmt.Printf("zoneID			: %s\n", zoneID)
 		fmt.Printf("r53TxtRec		: %t\n", r53TxtRec)

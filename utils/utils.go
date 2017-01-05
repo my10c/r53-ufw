@@ -25,13 +25,14 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.1
+// Version		:	0.2
 //
-// Date			:	Jan 3, 2017
+// Date			:	Jan 5, 2017
 //
 // History	:
 // 	Date:			Author:		Info:
 //	Jan 3, 2017		LIS			First Release
+//	Jab 5, 2017		LIS			Adding suport for --profile
 //
 
 package utils
@@ -52,11 +53,11 @@ var (
 	myAuthor = "Luc Suryo"
 	myCopyright = "Copyright 2016 - " + strconv.Itoa(now.Year()) + " ©BadAssOps inc"
 	myLicense = "BSD, http://www.freebsd.org/copyright/freebsd-license.html"
-	MyVersion = "0.1"
+	MyVersion = "0.2"
 	myEmail = "<luc@badassops.com>"
 	MyInfo = MyProgname + " " + MyVersion + "\n" + myCopyright + "\nLicense" + myLicense + "\nWritten by " + myAuthor + " " + myEmail + "\n"
-	MyUsage = "[--name=<username>] [--ip=<ip-address>] [--action=<action>] <--perm> <--text>"
-	myDescription = "Program to change your IP in the VPN Route53 zone file, use to allow access to builds server."
+	MyUsage = "[--name=username] [--ip=ip-address] [--action=action-name] <--profile=profile-name> <--perm> <--text>"
+	myDescription = "Program to change your IP in the Route53 zone file, use to allow access to builds server."
 )
 
 // Function to exit if an error occured
@@ -87,14 +88,14 @@ func CheckRfc1918Ip(ip string) (bool, string) {
 }
 
 // Function to show how to setup the aws credentials and the route53 config 
-func SetupHelp() {
+func SetupHelp(profile string) {
 	fmt.Printf("%s", MyInfo)
 	fmt.Printf("Setup the aws credentials file:")
 	fmt.Printf("\n\t1. Get an AWS API key pair from Ops.\n")
 	fmt.Printf("\t2. Create the directory .aws in your home dir with the permission 0700.\n")
 	fmt.Printf("\t3. Create the file .aws/credentials in your home dir with the permission 0600.\n")
 	fmt.Printf("\t4. Add the followong lines in the file .aws/credentials.\n")
-	fmt.Printf("\t\t[vpn]\n")
+	fmt.Printf("\t\t[%s]\n", profile)
 	fmt.Printf("\t\taws_access_key_id = {your-taws_access_key_id from 1 above}\n")
 	fmt.Printf("\t\taws_secret_access_key = {aws_secret_access_key from 1 above}\n")
 	fmt.Printf("\t\tregion = us-west-2\n")
@@ -102,25 +103,30 @@ func SetupHelp() {
 	fmt.Printf("\n\t5. Get the zone id and zone name from Ops.\n")
 	fmt.Printf("\t6. Create the file .aws/route53 with the permission 0600.\n")
 	fmt.Printf("\t7. Add the followong lines in the file .aws/route53.\n")
-	fmt.Printf("\t\t[vpn]\n")
+	fmt.Printf("\t\t[%s]\n", profile)
 	fmt.Printf("\t\tzone_name = {zone name from 5}\n")
 	fmt.Printf("\t\tzone_id = {zone name id 5}\n")
+	fmt.Printf("\n\n\tNOTE: the default profile is %s and it has to match in both files.\n", profile)
+	fmt.Printf("\t\tIf you like to use a different name you will always need to use the --profile flag\n")
 }
 
 // Function to show the help information
-func Help() {
+func Help(profile string) {
 	fmt.Printf("%s", MyInfo)
 	fmt.Printf("Usage : %s [-h] %s\n", MyProgname, MyUsage)
 	fmt.Printf("\t--action\tvalid actions add, del, mod and list. [1]\n")
 	fmt.Printf("\t--ip\t\tThis should your be your home ip-address [1], http://whatismyip.com\n")
-	fmt.Printf("\t--name\t\tThis must be your username [2], it will show as {your-name} in DNS, you can add a suffix for multiple record. [4]\n")
+	fmt.Printf("\t--name\t\tThis must be your username [2], it will show as {your-name} in DNS, you can add a suffix for multiple records. [4]\n")
 	fmt.Printf("\t--perm\tMark the record as permament by creating or deleting the assosiate TXT recod [3].\n")
+	fmt.Printf("\t--profile\tprofile name (also call section) to use in the configuration files. [5]\n")
 	fmt.Printf("\n\t[1]\tMandatory flags.\n")
 	fmt.Printf("\t[2]\tMandatory by add, del and mod actions, optional with the list action, this must be your IAM username.\n")
 	fmt.Printf("\t[3]\tThis will create a TXT record that indicates the record should never be deleted by the firewall.\n")
 	fmt.Printf("\t[4]\tExamples:\n")
 	fmt.Printf("\t\t\tfor temporary location for Luc while in Leuven you will use luc-leuven.\n")
 	fmt.Printf("\t\t\tVictor while working at his parent house, victor-parents.\n")
+	fmt.Printf("\t[5]\tOptional, default to '%s', the name has to match in both configuration files.\n", profile)
+	fmt.Printf("\t\tCall " + MyProgname  +" with the --setup flag for more information about the configuration files.\n")
 }
 
 // function to print action result

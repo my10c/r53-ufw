@@ -87,16 +87,19 @@ Usage of r53-ufw-client:
     	This must be your username, same as the (yours) dns record, you can add a suffix for multiple record.
   -perm
     	mark record as permanent.
+  -profile value
+    	Profile to use, default to r53-ufw.
   -setup
     	show how to setup your AWS credentials and then exit.
   -version
     	prints current version and exit.
+
 ```
 
 There is even a -setup to help the user to setup the required configuration files
 ```
 r53-ufw-client -setup
-r53-ufw-client 0.1
+r53-ufw-client 0.2
 Copyright 2016 - 2017 ©BadAssOps inc
 LicenseBSD, http://www.freebsd.org/copyright/freebsd-license.html
 Written by Luc Suryo <luc@badassops.com>
@@ -116,6 +119,12 @@ Setup the route54 configuration file:
 	7. Add the followong lines in the file .aws/route53.
 		[r53-ufw]
 		zone_name = {zone name from 5}
+		zone_id = {zone name id 5}
+
+
+	NOTE: the default profile is r53-ufw and it has to match in both files.
+		If you like to use a different name you will always need to use the --profile flag
+
 ```
 
 

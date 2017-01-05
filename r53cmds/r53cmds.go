@@ -30,8 +30,8 @@
 // Date			:	Jan 4, 2917
 //
 // History	:
-// 	Date:			Author:			Info:
-//	JAn 4, 2017		LIS				First Release
+// 	Date:			Author:		Info:
+//	Jan 4, 2017		LIS			First Release
 //
 
 package r53cmds
@@ -210,7 +210,7 @@ func AddDelModRecord(r53Sess *route53.Route53, zoneTtl int, argv ...string) bool
 					},
 				},
 			},
-			Comment: aws.String("VPN access"),
+			Comment: aws.String("Server access via r53-ufw"),
 		},
 		HostedZoneId: aws.String(argv[0]),
 	}
