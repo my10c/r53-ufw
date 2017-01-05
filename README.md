@@ -1,5 +1,5 @@
 
-## r53-vpn: Allow tusted user to manage acces to a server via AWS Route53
+## r53-ufw: Allow tusted user to manage acces to a server via AWS Route53
 
 ## Background
 
@@ -47,8 +47,8 @@ momo  IN  TXT "Permanent to: 66.66.66.66
 
 using the client side the command will look like this
 ```
-r53-vpn-client -action add -name momo-brussel -ip 77.77.77.77
-r53-vpn-client -action add -name momo -ip 66.66.66.66 -perm
+r53-ufw-client -action add -name momo-brussel -ip 77.77.77.77
+r53-ufw-client -action add -name momo -ip 66.66.66.66 -perm
 ```
 
 Simple right? Once these record has been create, aboout 5 mins later (depends on your crontab) these IPs has been added to
@@ -60,7 +60,7 @@ you get can change everyday!
 ### Server side
 Lets run a crontabs  on the server that every 5 mins:
 1. it will pulls all A-records and TXT-records.
-2. First time all A-record IPs will be added to the firewall rule and keep track of it (simple write it to say /var/lib/r53-vpn/status.
+2. First time all A-record IPs will be added to the firewall rule and keep track of it (simple write it to say /var/lib/r53-ufw/status.
 3. By the second run it will compare the current records vs the pervious pull, then add only the IPs from the delta.
 
 ```
@@ -74,11 +74,11 @@ Cleanup the firewall on any ip that has not been marked permanent
 
 ## The apps
 
-#### the r53-vpn-client
+#### the r53-ufw-client
 
 ```
-r53-vpn-client -help
-Usage of r53-vpn-client:
+r53-ufw-client -help
+Usage of r53-ufw-client:
   -action value
     	Action choice of add, del, mod and list.
   -ip value
@@ -95,8 +95,8 @@ Usage of r53-vpn-client:
 
 There is even a -setup to help the user to setup the required configuration files
 ```
-r53-vpn-client -setup
-r53-vpn-client 0.1
+r53-ufw-client -setup
+r53-ufw-client 0.1
 Copyright 2016 - 2017 ©BadAssOps inc
 LicenseBSD, http://www.freebsd.org/copyright/freebsd-license.html
 Written by Luc Suryo <luc@badassops.com>
@@ -105,7 +105,7 @@ Setup the aws credentials file:
 	2. Create the directory .aws in your home dir with the permission 0700.
 	3. Create the file .aws/credentials in your home dir with the permission 0600.
 	4. Add the followong lines in the file .aws/credentials.
-		[vpn]
+		[r53-ufw]
 		aws_access_key_id = {your-taws_access_key_id from 1 above}
 		aws_secret_access_key = {aws_secret_access_key from 1 above}
 		region = us-west-2
@@ -114,7 +114,7 @@ Setup the route54 configuration file:
 	5. Get the zone id and zone name from Ops.
 	6. Create the file .aws/route53 with the permission 0600.
 	7. Add the followong lines in the file .aws/route53.
-		[vpn]
+		[r53-ufw]
 		zone_name = {zone name from 5}
 ```
 

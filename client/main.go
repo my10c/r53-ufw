@@ -45,9 +45,9 @@ import (
 	"fmt"
 //	"log"
 	"os"
-	"github.com/my10c/r53-vpn/initialze"
-	"github.com/my10c/r53-vpn/utils"
-	"github.com/my10c/r53-vpn/r53cmds"
+	"github.com/my10c/r53-ufw/initialze"
+	"github.com/my10c/r53-ufw/utils"
+	"github.com/my10c/r53-ufw/r53cmds"
 
 	"github.com/aws/aws-sdk-go/service/route53"
 )
@@ -78,7 +78,7 @@ func main() {
 	initialze.InitLog(logfile)
 	zoneName, zoneID := initialze.GetConfig(configName, configPath)
 	r53TxtRec, r53Action, r53RecName, r53RecValue := initialze.InitArgs()
-	mySess, aimUserName := initialze.InitSession("vpn", zoneName)
+	mySess, aimUserName := initialze.InitSession("r53-ufw", zoneName)
 
 	if r53Action == "list" {
 		r53cmds.FindRecords(mySess, zoneID, r53RecName)
@@ -108,7 +108,7 @@ func main() {
 	}
 
 	switch r53Action {
-		case "add" : 
+		case "add" :
 				action = "Adding record"
 				// Adding the A record	
 				if resultARec == false {
@@ -130,7 +130,7 @@ func main() {
 				if r53TxtRec == true {
 					if resultTxtRec == false {
 						result := r53cmds.AddDelModRecord(mySess, r54Ttl, zoneID, zoneName,
-							aimUserName, aimUserName, r53RecValue, "add", route53.RRTypeTxt) 
+							aimUserName, aimUserName, r53RecValue, "add", route53.RRTypeTxt)
 						if result == false {
 							fmt.Printf("-< failed to add TXT-record >-\n")
 							//log.Printf("-< failed to add TXT-record >-\n")
@@ -144,11 +144,11 @@ func main() {
 					}
 					utils.PrintActionResult(action, r53RecName, r53cmds.TxtPrefix + r53RecValue, "TXT")
 				}
-		case "del" : 
+		case "del" :
 				action = "Delete record"
 				if resultARec == true {
 					result := r53cmds.AddDelModRecord(mySess, r54Ttl, zoneID, zoneName,
-						r53RecName, aimUserName, r53RecValue, "del", route53.RRTypeA) 
+						r53RecName, aimUserName, r53RecValue, "del", route53.RRTypeA)
 					if result == false {
 						fmt.Printf("-< failed to delete A-record >-\n")
 						//log.Printf("-< failed to delete A-record >-\n")
@@ -165,7 +165,7 @@ func main() {
 				if r53TxtRec == true {
 					if resultTxtRec == true {
 						result := r53cmds.AddDelModRecord(mySess, r54Ttl, zoneID, zoneName,
-							aimUserName, aimUserName, r53RecValue, "del", route53.RRTypeTxt) 
+							aimUserName, aimUserName, r53RecValue, "del", route53.RRTypeTxt)
 						if result == false {
 							fmt.Printf("-< failed to delete TXT-record >-\n")
 							//log.Printf("-< failed to delete TXT-record >-\n")
@@ -201,7 +201,7 @@ func main() {
 				if r53TxtRec == true {
 					if resultTxtRec == true {
 						resultModDel := r53cmds.AddDelModRecord(mySess, r54Ttl, zoneID, zoneName,
-							aimUserName, aimUserName, r53RecValue, "mod", route53.RRTypeTxt) 
+							aimUserName, aimUserName, r53RecValue, "mod", route53.RRTypeTxt)
 						if resultModDel == false {
 							fmt.Printf("-< failed modify the TXT-record >-\n")
 							//log.Printf("-< failed modify the TXT-record >-\n")

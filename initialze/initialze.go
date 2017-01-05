@@ -42,7 +42,7 @@ import (
 	"log"
 	"flag"
 
-	"github.com/my10c/r53-vpn/utils"
+	"github.com/my10c/r53-ufw/utils"
 
 	"github.com/spf13/viper"
 

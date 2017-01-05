@@ -43,7 +43,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/my10c/r53-vpn/utils"
+	"github.com/my10c/r53-ufw/utils"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/route53"
