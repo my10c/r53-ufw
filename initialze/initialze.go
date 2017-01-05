@@ -32,7 +32,7 @@
 // History	:
 // 	Date:			Author:		Info:
 //	Jan 3, 2017		LIS			First Release
-//	Jan 5, 2017		LIS			Added support for --profile
+//	Jan 5, 2017		LIS			Added support for --profile and --debug
 //
 
 package initialze
@@ -40,6 +40,7 @@ package initialze
 import (
 	"fmt"
 	"os"
+	"bufio"
 	"log"
 	"flag"
 
@@ -65,8 +66,8 @@ var (
 	MyAction StringFlag
 	MyPerm bool = false
 	MyProfile StringFlag
+	MyDebug bool = false
 )
-
 
 // Function for the StringFlag struct, set the values
 func (sf *StringFlag) Set(x string) error {
@@ -86,10 +87,18 @@ func (sf *StringFlag) String() string {
 // 0 profile
 // 1. config file name
 // 2. config file path
-func GetConfig(argv ...string) (string, string) {
+func GetConfig(debug bool, argv ...string) (string, string) {
+	viper.SetConfigFile(argv[2] + "/" + argv[1])
 	viper.SetConfigType("toml")
-	viper.SetConfigName(argv[1])
-	viper.AddConfigPath(argv[2])
+	if debug == true {
+		fmt.Printf("\n--< ** START DEBUG INFO : GetConfig >--\n")
+		viper.Debug()
+		fmt.Print("Press 'Enter' to continue...")
+		bufio.NewReader(os.Stdin).ReadBytes('\n')
+		fmt.Printf("\n--< ** END DEBUG INFO >--\n")
+	}
+	// viper.SetConfigName(argv[1])
+	// viper.AddConfigPath(argv[2])
 	err := viper.ReadInConfig()
 	if err != nil {
 		utils.ExitIfError(err)
@@ -152,7 +161,7 @@ func InitLog(logfile string) {
 // 1 MyAction.value
 // 2 MyName.value
 // 3 MyIp.value
-func InitArgs(profile string) (bool, string, string, string, string) {
+func InitArgs(profile string) (bool, string, string, string, string, bool) {
 	var errored int = 0
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", utils.MyProgname)
@@ -161,8 +170,9 @@ func InitArgs(profile string) (bool, string, string, string, string) {
 	}
 	version := flag.Bool("version", false, "prints current version and exit.")
 	setup := flag.Bool("setup", false, "show how to setup your AWS credentials and then exit.")
+	MyDebug := flag.Bool("debug", false, "Enable debug.")
 	MyPerm := flag.Bool("perm", false, "mark record as permanent.")
-	flag.Var(&MyAction, "action","Action choice of add, del, mod and list.")
+	flag.Var(&MyAction, "action", "Action choice of add, del, mod and list.")
 	flag.Var(&MyName, "name", "This must be your username, same as the (yours) dns record, you can add a suffix for multiple record.")
 	flag.Var(&MyIp, "ip", "IP address to assign to yours dns record, this must be your 'home' public IP.")
 	flag.Var(&MyProfile, "profile", "Profile to use, default to " + profile + ".")
@@ -187,7 +197,7 @@ func InitArgs(profile string) (bool, string, string, string, string) {
 			case "add": break
 			case "del": break
 			case "mod": break
-			case "list": return *MyPerm, MyAction.value, MyName.value, MyIp.value, MyProfile.value
+			case "list": return *MyPerm, MyAction.value, MyName.value, MyIp.value, MyProfile.value, *MyDebug
 			default:
 				fmt.Printf("%s is not valid command.\n", MyAction.value )
 				log.Printf(MyAction.value, " is not valid command.")
@@ -215,5 +225,5 @@ func InitArgs(profile string) (bool, string, string, string, string) {
 		log.Printf(info)
 		os.Exit(2)
 	}
-	return *MyPerm, MyAction.value, MyName.value, MyIp.value, MyProfile.value
+	return *MyPerm, MyAction.value, MyName.value, MyIp.value, MyProfile.value, *MyDebug
 }

@@ -25,13 +25,14 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.1
+// Version		:	0.2
 //
-// Date			:	Jan 4, 2917
+// Date			:	Jan 5, 2917
 //
 // History	:
 // 	Date:			Author:		Info:
 //	Jan 4, 2017		LIS			First Release
+//	JAb 5, 2017		LIS			Added support for --debug
 //
 
 package r53cmds
@@ -41,6 +42,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"bufio"
 	"strings"
 
 	"github.com/my10c/r53-ufw/utils"
@@ -82,7 +84,7 @@ func waitForChange(r53_sess *route53.Route53, change *route53.ChangeInfo) {
 	}
 }
 
-func FindRecords(r53Sess *route53.Route53, zoneId string, userName string) {
+func FindRecords(debug bool, r53Sess *route53.Route53, zoneId string, userName string) {
 	var err error
 	var hit bool
 	hit = false
@@ -99,6 +101,13 @@ func FindRecords(r53Sess *route53.Route53, zoneId string, userName string) {
 	var rrsets []*route53.ResourceRecordSet
 	rrsets = append(rrsets, resp.ResourceRecordSets...)
 	for _, rrset := range rrsets {
+		if debug == true {
+			fmt.Printf("\n--< ** START DEBUG INFO : FindRecords >--\n")
+			fmt.Println(rrset)
+			fmt.Print("Press 'Enter' to continue...")
+			bufio.NewReader(os.Stdin).ReadBytes('\n')
+			fmt.Printf("\n--< ** END DEBUG INFO >--\n")
+		}
 		if *rrset.Type == route53.RRTypeA || *rrset.Type == route53.RRTypeTxt {
 			var ipOrTxt string = "IP"
 			if *rrset.Type == route53.RRTypeTxt {
@@ -133,7 +142,7 @@ func FindRecords(r53Sess *route53.Route53, zoneId string, userName string) {
 // 1 zoneName string
 // 2 userName string
 // 3 recordType string
-func SearchRecord(r53Sess *route53.Route53, argv ...string) bool {
+func SearchRecord(debug bool, r53Sess *route53.Route53, argv ...string) bool {
 	var err error
 	var recName = argv[2] + "." + argv[1] + "."
 	var recType = argv[3]
@@ -154,11 +163,18 @@ func SearchRecord(r53Sess *route53.Route53, argv ...string) bool {
 	var hit = false
 	rrsets = append(rrsets, resp.ResourceRecordSets...)
 	for _, rrset := range rrsets {
+		if debug == true {
+			fmt.Printf("\n--< ** START DEBUG INFO : SearchRecord >--\n")
+			fmt.Println(rrset)
+			fmt.Print("Press 'Enter' to continue...")
+			bufio.NewReader(os.Stdin).ReadBytes('\n')
+			fmt.Printf("\n--< ** END DEBUG INFO >--\n")
+		}
 		if *aws.String(*rrset.Name) == recName && *aws.String(*rrset.Type) == recType {
 			hit = true
 			break
 		}
-	}	
+	}
 	return hit
 }
 
@@ -171,7 +187,7 @@ func SearchRecord(r53Sess *route53.Route53, argv ...string) bool {
 // 4 ip string or text string
 // 5 mode string
 // 6 recordType string
-func AddDelModRecord(r53Sess *route53.Route53, zoneTtl int, argv ...string) bool {
+func AddDelModRecord(debug bool, r53Sess *route53.Route53, zoneTtl int, argv ...string) bool {
 	if strings.HasPrefix(argv[2], argv[3]) == false {
 		fmt.Printf("-< !! the record name must start with your AIM username (%s) !! >-\n", argv[3])
 		os.Exit(2)
@@ -218,6 +234,12 @@ func AddDelModRecord(r53Sess *route53.Route53, zoneTtl int, argv ...string) bool
 	resp, err := r53Sess.ChangeResourceRecordSets(params)
 	utils.ExitIfError(err)
 	waitForChange(r53Sess, resp.ChangeInfo)
-	// fmt.Println(resp)
+	if debug == true {
+		fmt.Printf("\n--< ** START DEBUG INFO : AddDelModRecord >--\n")
+		fmt.Println(resp)
+		fmt.Print("Press 'Enter' to continue...")
+		bufio.NewReader(os.Stdin).ReadBytes('\n')
+		fmt.Printf("\n--< ** END DEBUG INFO >--\n")
+	}
 	return true
 }

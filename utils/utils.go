@@ -32,7 +32,7 @@
 // History	:
 // 	Date:			Author:		Info:
 //	Jan 3, 2017		LIS			First Release
-//	Jab 5, 2017		LIS			Adding suport for --profile
+//	Jan 5, 2017		LIS			Adding suport for --profile and --debug
 //
 
 package utils
@@ -56,7 +56,7 @@ var (
 	MyVersion = "0.2"
 	myEmail = "<luc@badassops.com>"
 	MyInfo = MyProgname + " " + MyVersion + "\n" + myCopyright + "\nLicense" + myLicense + "\nWritten by " + myAuthor + " " + myEmail + "\n"
-	MyUsage = "[--name=username] [--ip=ip-address] [--action=action-name] <--profile=profile-name> <--perm> <--text>"
+	MyUsage = "[--name=username] [--ip=ip-address] [--action=action-name] <--profile=profile-name> <--perm> <--debug>"
 	myDescription = "Program to change your IP in the Route53 zone file, use to allow access to builds server."
 )
 
@@ -117,8 +117,9 @@ func Help(profile string) {
 	fmt.Printf("\t--action\tvalid actions add, del, mod and list. [1]\n")
 	fmt.Printf("\t--ip\t\tThis should your be your home ip-address [1], http://whatismyip.com\n")
 	fmt.Printf("\t--name\t\tThis must be your username [2], it will show as {your-name} in DNS, you can add a suffix for multiple records. [4]\n")
-	fmt.Printf("\t--perm\tMark the record as permament by creating or deleting the assosiate TXT recod [3].\n")
-	fmt.Printf("\t--profile\tprofile name (also call section) to use in the configuration files. [5]\n")
+	fmt.Printf("\t--perm\t\tMark the record as permament by creating or deleting the assosiate TXT recod [3].\n")
+	fmt.Printf("\t--profile\tProfile name (also call section) to use in the configuration files. [5]\n")
+	fmt.Printf("\t--debug\t\tEnable debug, warning lots of debug wil be ddisplayed!\n")
 	fmt.Printf("\n\t[1]\tMandatory flags.\n")
 	fmt.Printf("\t[2]\tMandatory by add, del and mod actions, optional with the list action, this must be your IAM username.\n")
 	fmt.Printf("\t[3]\tThis will create a TXT record that indicates the record should never be deleted by the firewall.\n")
