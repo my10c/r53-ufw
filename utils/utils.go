@@ -142,3 +142,8 @@ func PrintActionResult(argv ...string) {
 	fmt.Printf("-< %s      : %s >-\n", argv[3], argv[2])
 	return
 }
+
+// Function to create a array of the argument to be passed to a command exec
+func MakeCmdArgs(args ...string) []string {
+	return append([]string{args[0]}, args[1:]...)
+}
