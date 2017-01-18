@@ -54,19 +54,15 @@ import (
 )
 
 var (
-	mySess        *route53.Route53
 	logfile       string = "/tmp/alibaba.out"
 	configName    string = "route53"
 	configAWSPath string = "/.aws"
 	configPath    string
 	profileName   string = "r53-ufw"
-	zoneName      string
-	zoneID        string
-	r53TxtRec     bool = false
-	r54Ttl             = 300
+	r53TxtRec     bool   = false
+	ttl                  = 300
 	r53Action     string
 	r53RecName    string
-	r53RecValue   string
 	aimUserName   string
 	r54RecType    string = route53.RRTypeA
 	debug         bool   = false
@@ -79,7 +75,7 @@ func main() {
 	configPath = os.Getenv("HOME") + configAWSPath
 	initialze.InitLog(logfile)
 	zoneName, zoneID := initialze.GetConfig(debug, profileName, configName, configPath)
-	mySess, _ := initialze.InitSession(profileName, zoneName)
-	r53cmds.FindRecords(debug, mySess, zoneID, r53RecName)
+	mySess := r53cmds.New(debug, ttl, profileName, zoneName, zoneID, r53RecName)
+	mySess.FindRecords(r53RecName, 0)
 	os.Exit(0)
 }

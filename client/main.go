@@ -55,13 +55,12 @@ import (
 )
 
 var (
-	mySess        *route53.Route53
 	logfile       string = "/tmp/alibaba.out"
 	configName    string = "route53"
 	configAWSPath string = "/.aws"
 	configPath    string
 	profileName   string = "r53-ufw"
-	r54Ttl               = 300
+	ttl                  = 300
 	r54RecType    string = route53.RRTypeA
 	debug         bool   = false
 )
@@ -77,7 +76,7 @@ func main() {
 	initialze.InitLog(logfile)
 	r53TxtRec, r53Action, r53RecName, r53RecValue, profileName, debug := initialze.InitArgs(profileName)
 	zoneName, zoneID := initialze.GetConfig(debug, profileName, configName, configPath)
-	mySess := r53cmds.New(debug, profileName, zoneName, zoneID, r53RecName)
+	mySess := r53cmds.New(debug, ttl, profileName, zoneName, zoneID, r53RecName)
 
 	if r53Action == "list" {
 		mySess.FindRecords(r53RecName, 0)
@@ -102,6 +101,7 @@ func main() {
 		fmt.Printf("r53Action		: %s\n", r53Action)
 		fmt.Printf("r53RecName		: %s\n", mySess.UserName)
 		fmt.Printf("r53RecValue		: %s\n", r53RecValue)
+		fmt.Printf("TTL				: %s\n", mySess.Ttl)
 		fmt.Printf("mySess			: %v\n", mySess)
 		fmt.Printf("aimUserName		: %s\n", mySess.IAMUserName)
 		fmt.Printf("search Txt result	: %t\n", resultTxtRec)
@@ -116,7 +116,7 @@ func main() {
 		action = "Adding record"
 		// Adding the A record
 		if resultARec == false {
-			result := mySess.AddDelModRecord(r54Ttl, r53RecValue, "add", route53.RRTypeA)
+			result := mySess.AddDelModRecord(r53RecValue, "add", route53.RRTypeA)
 			if result == false {
 				fmt.Printf("-< failed to add A-record >-\n")
 				//log.Printf("-< failed to add A-record >-\n")
@@ -132,7 +132,7 @@ func main() {
 		// perm was given we need to add the TXT record
 		if r53TxtRec == true {
 			if resultTxtRec == false {
-				result := mySess.AddDelModRecord(r54Ttl, r53RecValue, "add", route53.RRTypeTxt)
+				result := mySess.AddDelModRecord(r53RecValue, "add", route53.RRTypeTxt)
 				if result == false {
 					fmt.Printf("-< failed to add TXT-record >-\n")
 					//log.Printf("-< failed to add TXT-record >-\n")
@@ -149,7 +149,7 @@ func main() {
 	case "del":
 		action = "Delete record"
 		if resultARec == true {
-			result := mySess.AddDelModRecord(r54Ttl, r53RecValue, "del", route53.RRTypeA)
+			result := mySess.AddDelModRecord(r53RecValue, "del", route53.RRTypeA)
 			if result == false {
 				fmt.Printf("-< failed to delete A-record >-\n")
 				//log.Printf("-< failed to delete A-record >-\n")
@@ -165,7 +165,7 @@ func main() {
 		// perm was given we need to delete the TXT record
 		if r53TxtRec == true {
 			if resultTxtRec == true {
-				result := mySess.AddDelModRecord(r54Ttl, r53RecValue, "del", route53.RRTypeTxt)
+				result := mySess.AddDelModRecord(r53RecValue, "del", route53.RRTypeTxt)
 				if result == false {
 					fmt.Printf("-< failed to delete TXT-record >-\n")
 					//log.Printf("-< failed to delete TXT-record >-\n")
@@ -183,7 +183,7 @@ func main() {
 		action = "Modify record"
 		if r53TxtRec == false {
 			if resultARec == true {
-				resultModDel := mySess.AddDelModRecord(r54Ttl, r53RecValue, "mod", route53.RRTypeA)
+				resultModDel := mySess.AddDelModRecord(r53RecValue, "mod", route53.RRTypeA)
 				if resultModDel == false {
 					fmt.Printf("-< failed modify the A-record >-\n")
 					//log.Printf("-< failed modify the A-record >-\n")
@@ -199,7 +199,7 @@ func main() {
 		}
 		if r53TxtRec == true {
 			if resultTxtRec == true {
-				resultModDel := mySess.AddDelModRecord(r54Ttl, r53RecValue, "mod", route53.RRTypeTxt)
+				resultModDel := mySess.AddDelModRecord(r53RecValue, "mod", route53.RRTypeTxt)
 				if resultModDel == false {
 					fmt.Printf("-< failed modify the TXT-record >-\n")
 					//log.Printf("-< failed modify the TXT-record >-\n")

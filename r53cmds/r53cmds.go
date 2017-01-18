@@ -63,6 +63,7 @@ type r53 struct {
 	ZoneName    string
 	IAMUserName string
 	UserName    string // given from command line, --name flag
+	Ttl         int
 	Debug       bool
 	ARecords    map[string]string
 	TxtRecords  map[string]string
@@ -83,7 +84,7 @@ func quoteValues(vals []string) string {
 // 1 zoneName
 // 2 zoneID
 // 3 userName : given from command line, --name flag
-func New(debug bool, argv ...string) *r53 {
+func New(debug bool, ttl int, argv ...string) *r53 {
 	mySess, aimUserName := initialze.InitSession(argv[0], argv[1])
 	r53S := &r53{
 		session:     mySess,
@@ -91,6 +92,7 @@ func New(debug bool, argv ...string) *r53 {
 		ZoneName:    argv[1],
 		IAMUserName: aimUserName,
 		UserName:    argv[3],
+		Ttl:         ttl,
 		Debug:       debug,
 	}
 	// ARecords, TxtRecords := mySess.FindRecords("", "new")
@@ -236,7 +238,7 @@ func (r53Sess *r53) SearchRecord(argv ...string) bool {
 // 0 ip string or text string
 // 1 mode string
 // 2 recordType string
-func (r53Sess *r53) AddDelModRecord(zoneTtl int, argv ...string) bool {
+func (r53Sess *r53) AddDelModRecord(argv ...string) bool {
 	if strings.HasPrefix(r53Sess.UserName, r53Sess.IAMUserName) == false {
 		fmt.Printf("-< !! the record name must start with your AIM username (%s) !! >-\n", r53Sess.IAMUserName)
 		os.Exit(2)
@@ -275,7 +277,7 @@ func (r53Sess *r53) AddDelModRecord(zoneTtl int, argv ...string) bool {
 								Value: aws.String(value),
 							},
 						},
-						TTL: aws.Int64(int64(zoneTtl)),
+						TTL: aws.Int64(int64(r53Sess.Ttl)),
 					},
 				},
 			},
