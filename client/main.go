@@ -60,7 +60,7 @@ var (
 	configAWSPath string = "/.aws"
 	configPath    string
 	profileName   string = "r53-ufw"
-	ttl                  = 300
+	r53TtlRec            = 300
 	r54RecType    string = route53.RRTypeA
 	debug         bool   = false
 )
@@ -76,7 +76,7 @@ func main() {
 	initialze.InitLog(logfile)
 	r53TxtRec, r53Action, r53RecName, r53RecValue, profileName, debug := initialze.InitArgs(profileName)
 	zoneName, zoneID := initialze.GetConfig(debug, profileName, configName, configPath)
-	mySess := r53cmds.New(debug, ttl, profileName, zoneName, zoneID, r53RecName)
+	mySess := r53cmds.New(debug, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
 
 	if r53Action == "list" {
 		mySess.FindRecords(r53RecName, 0)
@@ -101,7 +101,7 @@ func main() {
 		fmt.Printf("r53Action		: %s\n", r53Action)
 		fmt.Printf("r53RecName		: %s\n", mySess.UserName)
 		fmt.Printf("r53RecValue		: %s\n", r53RecValue)
-		fmt.Printf("TTL				: %s\n", mySess.Ttl)
+		fmt.Printf("r53TtlRec		: %s\n", mySess.Ttl)
 		fmt.Printf("mySess			: %v\n", mySess)
 		fmt.Printf("aimUserName		: %s\n", mySess.IAMUserName)
 		fmt.Printf("search Txt result	: %t\n", resultTxtRec)

@@ -60,10 +60,8 @@ var (
 	configPath    string
 	profileName   string = "r53-ufw"
 	r53TxtRec     bool   = false
-	ttl                  = 300
-	r53Action     string
+	r53TtlRec            = 300
 	r53RecName    string
-	aimUserName   string
 	r54RecType    string = route53.RRTypeA
 	debug         bool   = false
 )
@@ -75,7 +73,7 @@ func main() {
 	configPath = os.Getenv("HOME") + configAWSPath
 	initialze.InitLog(logfile)
 	zoneName, zoneID := initialze.GetConfig(debug, profileName, configName, configPath)
-	mySess := r53cmds.New(debug, ttl, profileName, zoneName, zoneID, r53RecName)
+	mySess := r53cmds.New(debug, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
 	mySess.FindRecords(r53RecName, 0)
 	os.Exit(0)
 }
