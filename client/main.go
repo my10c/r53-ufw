@@ -30,26 +30,26 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.2
+// Version		:	0.3
 //
-// Date			:	Jan 5, 2017
+// Date			:	Jan 17, 2017
 //
 // History	:
 // 	Date:			Author:		Info:
 //	Jan 3, 2017		LIS			First Release
 //	Jan 5, 2017		LIS			Added support for --profile and --debug
-//
+//	Jan 17, 2017	LIS			Convert to use the go objects with the adjusted r53cmd
 
 package main
 
 import (
 	"fmt"
+	"os"
 	//	"log"
 	"bufio"
 	"github.com/my10c/r53-ufw/initialze"
 	"github.com/my10c/r53-ufw/r53cmds"
 	"github.com/my10c/r53-ufw/utils"
-	"os"
 
 	"github.com/aws/aws-sdk-go/service/route53"
 )
@@ -61,14 +61,7 @@ var (
 	configAWSPath string = "/.aws"
 	configPath    string
 	profileName   string = "r53-ufw"
-	zoneName      string
-	zoneID        string
-	r53TxtRec     bool = false
-	r54Ttl             = 300
-	r53Action     string
-	r53RecName    string
-	r53RecValue   string
-	aimUserName   string
+	r54Ttl               = 300
 	r54RecType    string = route53.RRTypeA
 	debug         bool   = false
 )
@@ -84,33 +77,33 @@ func main() {
 	initialze.InitLog(logfile)
 	r53TxtRec, r53Action, r53RecName, r53RecValue, profileName, debug := initialze.InitArgs(profileName)
 	zoneName, zoneID := initialze.GetConfig(debug, profileName, configName, configPath)
-	mySess, aimUserName := initialze.InitSession(profileName, zoneName)
+	mySess := r53cmds.New(debug, profileName, zoneName, zoneID, r53RecName)
 
 	if r53Action == "list" {
-		r53cmds.FindRecords(debug, mySess, zoneID, r53RecName)
+		mySess.FindRecords(r53RecName, 0)
 		os.Exit(0)
 	}
 	if r53TxtRec == true {
 		r54RecType = route53.RRTypeTxt
-		resultTxtRec = r53cmds.SearchRecord(debug, mySess, zoneID, zoneName, aimUserName, route53.RRTypeTxt)
+		resultTxtRec = mySess.SearchRecord(route53.RRTypeTxt)
 	}
 
 	// let do some work ahead since we will need it
-	resultARec = r53cmds.SearchRecord(debug, mySess, zoneID, zoneName, r53RecName, route53.RRTypeA)
+	resultARec = mySess.SearchRecord(route53.RRTypeA)
 
 	// just for debug, need to set debug tp true and then recompile
-	if debug == true {
+	if mySess.Debug == true {
 		fmt.Printf("\n--< ** START DEBUG INFO : main >--\n")
 		fmt.Printf("configPath		: %s\n", configPath)
 		fmt.Printf("profileName		: %s\n", profileName)
-		fmt.Printf("zoneName		: %s\n", zoneName)
-		fmt.Printf("zoneID			: %s\n", zoneID)
+		fmt.Printf("zoneName		: %s\n", mySess.ZoneName)
+		fmt.Printf("zoneID			: %s\n", mySess.ZoneID)
 		fmt.Printf("r53TxtRec		: %t\n", r53TxtRec)
 		fmt.Printf("r53Action		: %s\n", r53Action)
-		fmt.Printf("r53RecName		: %s\n", r53RecName)
+		fmt.Printf("r53RecName		: %s\n", mySess.UserName)
 		fmt.Printf("r53RecValue		: %s\n", r53RecValue)
 		fmt.Printf("mySess			: %v\n", mySess)
-		fmt.Printf("aimUserName		: %s\n", aimUserName)
+		fmt.Printf("aimUserName		: %s\n", mySess.IAMUserName)
 		fmt.Printf("search Txt result	: %t\n", resultTxtRec)
 		fmt.Printf("search A result		: %t\n", resultARec)
 		fmt.Print("Press 'Enter' to continue...")
@@ -123,8 +116,7 @@ func main() {
 		action = "Adding record"
 		// Adding the A record
 		if resultARec == false {
-			result := r53cmds.AddDelModRecord(debug, mySess, r54Ttl, zoneID, zoneName,
-				r53RecName, aimUserName, r53RecValue, "add", route53.RRTypeA)
+			result := mySess.AddDelModRecord(r54Ttl, r53RecValue, "add", route53.RRTypeA)
 			if result == false {
 				fmt.Printf("-< failed to add A-record >-\n")
 				//log.Printf("-< failed to add A-record >-\n")
@@ -140,8 +132,7 @@ func main() {
 		// perm was given we need to add the TXT record
 		if r53TxtRec == true {
 			if resultTxtRec == false {
-				result := r53cmds.AddDelModRecord(debug, mySess, r54Ttl, zoneID, zoneName,
-					aimUserName, aimUserName, r53RecValue, "add", route53.RRTypeTxt)
+				result := mySess.AddDelModRecord(r54Ttl, r53RecValue, "add", route53.RRTypeTxt)
 				if result == false {
 					fmt.Printf("-< failed to add TXT-record >-\n")
 					//log.Printf("-< failed to add TXT-record >-\n")
@@ -153,13 +144,12 @@ func main() {
 				//log.Printf("-< TXT-record already exist >-\n")
 				os.Exit(1)
 			}
-			utils.PrintActionResult(action, r53RecName, r53cmds.TxtPrefix+r53RecValue, "TXT")
+			// utils.PrintActionResult(action, r53RecName, r53cmds.TxtPrefix+r53RecValue, "TXT")
 		}
 	case "del":
 		action = "Delete record"
 		if resultARec == true {
-			result := r53cmds.AddDelModRecord(debug, mySess, r54Ttl, zoneID, zoneName,
-				r53RecName, aimUserName, r53RecValue, "del", route53.RRTypeA)
+			result := mySess.AddDelModRecord(r54Ttl, r53RecValue, "del", route53.RRTypeA)
 			if result == false {
 				fmt.Printf("-< failed to delete A-record >-\n")
 				//log.Printf("-< failed to delete A-record >-\n")
@@ -175,8 +165,7 @@ func main() {
 		// perm was given we need to delete the TXT record
 		if r53TxtRec == true {
 			if resultTxtRec == true {
-				result := r53cmds.AddDelModRecord(debug, mySess, r54Ttl, zoneID, zoneName,
-					aimUserName, aimUserName, r53RecValue, "del", route53.RRTypeTxt)
+				result := mySess.AddDelModRecord(r54Ttl, r53RecValue, "del", route53.RRTypeTxt)
 				if result == false {
 					fmt.Printf("-< failed to delete TXT-record >-\n")
 					//log.Printf("-< failed to delete TXT-record >-\n")
@@ -188,14 +177,13 @@ func main() {
 				//log.Printf("-< TXT-record does not exist >-\n")
 				os.Exit(1)
 			}
-			utils.PrintActionResult(action, aimUserName, r53cmds.TxtPrefix+r53RecValue, "TXT")
+			// utils.PrintActionResult(action, aimUserName, r53cmds.TxtPrefix+r53RecValue, "TXT")
 		}
 	case "mod":
 		action = "Modify record"
 		if r53TxtRec == false {
 			if resultARec == true {
-				resultModDel := r53cmds.AddDelModRecord(debug, mySess, r54Ttl, zoneID, zoneName,
-					r53RecName, aimUserName, r53RecValue, "mod", route53.RRTypeA)
+				resultModDel := mySess.AddDelModRecord(r54Ttl, r53RecValue, "mod", route53.RRTypeA)
 				if resultModDel == false {
 					fmt.Printf("-< failed modify the A-record >-\n")
 					//log.Printf("-< failed modify the A-record >-\n")
@@ -211,14 +199,13 @@ func main() {
 		}
 		if r53TxtRec == true {
 			if resultTxtRec == true {
-				resultModDel := r53cmds.AddDelModRecord(debug, mySess, r54Ttl, zoneID, zoneName,
-					aimUserName, aimUserName, r53RecValue, "mod", route53.RRTypeTxt)
+				resultModDel := mySess.AddDelModRecord(r54Ttl, r53RecValue, "mod", route53.RRTypeTxt)
 				if resultModDel == false {
 					fmt.Printf("-< failed modify the TXT-record >-\n")
 					//log.Printf("-< failed modify the TXT-record >-\n")
 					os.Exit(1)
 				}
-				utils.PrintActionResult(action, aimUserName, r53cmds.TxtPrefix+r53RecValue, "TXT")
+				//utils.PrintActionResult(action, aimUserName, r53cmds.TxtPrefix+r53RecValue, "TXT")
 			}
 			if resultTxtRec == false {
 				fmt.Printf("-< TXT-record does not exist, check with action list to see value(s) >-\n")

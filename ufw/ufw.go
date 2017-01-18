@@ -80,6 +80,7 @@ type ufwExec struct {
 
 type ufwRule string
 
+// For future development
 type UFW interface {
 	getStatus() bool
 	updateRules() bool
@@ -107,7 +108,7 @@ func (ufwRule) ufwRuleInt(rule string) (int, bool) {
 	return 0, false
 }
 
-// Fucntion to create a ufwExec object and fill the status and rules if applicable (status == active)
+// Function to create a ufwExec object and fill the status and rules if applicable (status == active)
 func New() *ufwExec {
 	var my_status bool
 	var my_rules []string = nil

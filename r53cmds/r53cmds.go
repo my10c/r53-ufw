@@ -25,26 +25,28 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.2
+// Version		:	0.3
 //
-// Date			:	Jan 5, 2917
+// Date			:	Jan 17, 2917
 //
 // History	:
 // 	Date:			Author:		Info:
 //	Jan 4, 2017		LIS			First Release
-//	JAb 5, 2017		LIS			Added support for --debug
+//	Jan 5, 2017		LIS			Added support for --debug
+//	Jan 17, 2017	LIS			Adjustment for Go style
 //
 
 package r53cmds
 
 import (
-	"time"
+	"bufio"
 	"fmt"
 	"log"
 	"os"
-	"bufio"
 	"strings"
+	"time"
 
+	"github.com/my10c/r53-ufw/initialze"
 	"github.com/my10c/r53-ufw/utils"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -55,6 +57,17 @@ var (
 	TxtPrefix string = "Permanent to: "
 )
 
+type r53 struct {
+	session     *route53.Route53
+	ZoneID      string
+	ZoneName    string
+	IAMUserName string
+	UserName    string // given from command line, --name flag
+	Debug       bool
+	ARecords    map[string]string
+	TxtRecords  map[string]string
+}
+
 // Function to quote a given string
 func quoteValues(vals []string) string {
 	var qvals []string
@@ -64,12 +77,32 @@ func quoteValues(vals []string) string {
 	return strings.Join(qvals, " ")
 }
 
+// Function to create a r53 object and initialized
+// string positions
+// 0 profileName
+// 1 zoneName
+// 2 zoneID
+// 3 userName : given from command line, --name flag
+func New(debug bool, argv ...string) *r53 {
+	mySess, aimUserName := initialze.InitSession(argv[0], argv[1])
+	r53S := &r53{
+		session:     mySess,
+		ZoneID:      argv[2],
+		ZoneName:    argv[1],
+		IAMUserName: aimUserName,
+		UserName:    argv[3],
+		Debug:       debug,
+	}
+	// ARecords, TxtRecords := mySess.FindRecords("", "new")
+	return r53S
+}
+
 // Function to wait for the route53 completion of the request (add or delete record)
-func waitForChange(r53_sess *route53.Route53, change *route53.ChangeInfo) {
+func (r53Sess *r53) waitForChange(change *route53.ChangeInfo) {
 	fmt.Printf("Waiting for sync")
 	for {
 		req := route53.GetChangeInput{Id: change.Id}
-		resp, err := r53_sess.GetChange(&req)
+		resp, err := r53Sess.session.GetChange(&req)
 		utils.ExitIfError(err)
 		if *resp.ChangeInfo.Status == "INSYNC" {
 			fmt.Println("\nCompleted.")
@@ -84,15 +117,21 @@ func waitForChange(r53_sess *route53.Route53, change *route53.ChangeInfo) {
 	}
 }
 
-func FindRecords(debug bool, r53Sess *route53.Route53, zoneId string, userName string) {
+// Function to display all A and TXT records
+// mode 0 = print result, return nothing
+// mode 1 =  do not print resultm return records in map
+func (r53Sess *r53) FindRecords(userName string, mode int) (map[string]string, map[string]string) {
 	var err error
 	var hit bool
+	aRecords := make(map[string]string)
+	txtRecords := make(map[string]string)
+
 	hit = false
 	req := route53.ListResourceRecordSetsInput{
-		HostedZoneId: &zoneId,
+		HostedZoneId: &r53Sess.ZoneID,
 	}
 	var resp *route53.ListResourceRecordSetsOutput
-	resp, err = r53Sess.ListResourceRecordSets(&req)
+	resp, err = r53Sess.session.ListResourceRecordSets(&req)
 	if err != nil {
 		log.Printf("-< % >-\n", err)
 		os.Exit(1)
@@ -101,7 +140,7 @@ func FindRecords(debug bool, r53Sess *route53.Route53, zoneId string, userName s
 	var rrsets []*route53.ResourceRecordSet
 	rrsets = append(rrsets, resp.ResourceRecordSets...)
 	for _, rrset := range rrsets {
-		if debug == true {
+		if r53Sess.Debug == true && mode == 0 {
 			fmt.Printf("\n--< ** START DEBUG INFO : FindRecords >--\n")
 			fmt.Println(rrset)
 			fmt.Print("Press 'Enter' to continue...")
@@ -115,14 +154,23 @@ func FindRecords(debug bool, r53Sess *route53.Route53, zoneId string, userName s
 			}
 			if userName == "" {
 				hit = true
-				for value := range rrset.ResourceRecords{
+				for value := range rrset.ResourceRecords {
 					var data = *rrset.ResourceRecords[value].Value
-					fmt.Printf("-< Name: %s \t%s: %s >-\n", *rrset.Name, ipOrTxt, data)
+					if mode == 0 {
+						fmt.Printf("-< Name: %s \t%s: %s >-\n", *rrset.Name, ipOrTxt, data)
+					} else {
+						if ipOrTxt == "IP" {
+							aRecords[*rrset.Name] = data
+						}
+						if ipOrTxt == "TXT" {
+							txtRecords[*rrset.Name] = data
+						}
+					}
 				}
 			} else {
 				if strings.Contains(*aws.String(*rrset.Name), userName) {
 					hit = true
-					for value := range rrset.ResourceRecords{
+					for value := range rrset.ResourceRecords {
 						var data = *rrset.ResourceRecords[value].Value
 						fmt.Printf("-< Name: %s \t%s: %s >-\n", *rrset.Name, ipOrTxt, data)
 					}
@@ -131,27 +179,32 @@ func FindRecords(debug bool, r53Sess *route53.Route53, zoneId string, userName s
 		}
 	}
 	if hit == false && userName != "" {
-		fmt.Printf("-< No record foond with the give name: %s >-\n", userName)
+		if mode == 0 {
+			fmt.Printf("-< No record foond with the give name: %s >-\n", userName)
+		} else {
+			return nil, nil
+		}
 	}
-	return
+	if mode == 0 {
+		return nil, nil
+	} else {
+		return aRecords, txtRecords
+	}
 }
 
 // Function to search if the given record exist in the zone
 // strings position:
-// 0 zoneId string
-// 1 zoneName string
-// 2 userName string
-// 3 recordType string
-func SearchRecord(debug bool, r53Sess *route53.Route53, argv ...string) bool {
+// 0 recordType string
+func (r53Sess *r53) SearchRecord(argv ...string) bool {
 	var err error
-	var recName = argv[2] + "." + argv[1] + "."
-	var recType = argv[3]
+	var recName = r53Sess.UserName + "." + r53Sess.ZoneName + "."
+	var recType = argv[0]
 	req := route53.ListResourceRecordSetsInput{
-		HostedZoneId: &argv[0],
+		HostedZoneId:    &r53Sess.ZoneID,
 		StartRecordName: &recName,
 	}
 	var resp *route53.ListResourceRecordSetsOutput
-	resp, err = r53Sess.ListResourceRecordSets(&req)
+	resp, err = r53Sess.session.ListResourceRecordSets(&req)
 	if err != nil {
 		return false
 	}
@@ -163,7 +216,7 @@ func SearchRecord(debug bool, r53Sess *route53.Route53, argv ...string) bool {
 	var hit = false
 	rrsets = append(rrsets, resp.ResourceRecordSets...)
 	for _, rrset := range rrsets {
-		if debug == true {
+		if r53Sess.Debug == true {
 			fmt.Printf("\n--< ** START DEBUG INFO : SearchRecord >--\n")
 			fmt.Println(rrset)
 			fmt.Print("Press 'Enter' to continue...")
@@ -180,34 +233,34 @@ func SearchRecord(debug bool, r53Sess *route53.Route53, argv ...string) bool {
 
 // Function to delete, create or modify a route53 record
 // strings position:
-// 0 zoneId string
-// 1 zoneName string
-// 2 userName string
-// 3 iamUserName string
-// 4 ip string or text string
-// 5 mode string
-// 6 recordType string
-func AddDelModRecord(debug bool, r53Sess *route53.Route53, zoneTtl int, argv ...string) bool {
-	if strings.HasPrefix(argv[2], argv[3]) == false {
-		fmt.Printf("-< !! the record name must start with your AIM username (%s) !! >-\n", argv[3])
+// 0 ip string or text string
+// 1 mode string
+// 2 recordType string
+func (r53Sess *r53) AddDelModRecord(zoneTtl int, argv ...string) bool {
+	if strings.HasPrefix(r53Sess.UserName, r53Sess.IAMUserName) == false {
+		fmt.Printf("-< !! the record name must start with your AIM username (%s) !! >-\n", r53Sess.IAMUserName)
 		os.Exit(2)
 	}
 	var action string
-	switch argv[5] {
-		case "add": action = "CREATE"
-		case "del": action = "DELETE"
-		case "mod": action = "UPSERT"
-		default : return false
+	switch argv[1] {
+	case "add":
+		action = "CREATE"
+	case "del":
+		action = "DELETE"
+	case "mod":
+		action = "UPSERT"
+	default:
+		return false
 	}
-	var rec_name = argv[2] + "." + argv[1] + "."
+	var rec_name = r53Sess.UserName + "." + r53Sess.ZoneName + "."
 	var value string
-	if argv[6] == route53.RRTypeTxt {
+	if argv[2] == route53.RRTypeTxt {
 		var txt_value []string
-		txt_value = append(txt_value, TxtPrefix + argv[4])
+		txt_value = append(txt_value, TxtPrefix+argv[0])
 		value = quoteValues(txt_value)
 	}
-	if argv[6] == route53.RRTypeA {
-		value = argv[4]
+	if argv[2] == route53.RRTypeA {
+		value = argv[0]
 	}
 	params := &route53.ChangeResourceRecordSetsInput{
 		ChangeBatch: &route53.ChangeBatch{
@@ -216,7 +269,7 @@ func AddDelModRecord(debug bool, r53Sess *route53.Route53, zoneTtl int, argv ...
 					Action: aws.String(action),
 					ResourceRecordSet: &route53.ResourceRecordSet{
 						Name: aws.String(rec_name),
-						Type: aws.String(argv[6]),
+						Type: aws.String(argv[2]),
 						ResourceRecords: []*route53.ResourceRecord{
 							{
 								Value: aws.String(value),
@@ -228,13 +281,13 @@ func AddDelModRecord(debug bool, r53Sess *route53.Route53, zoneTtl int, argv ...
 			},
 			Comment: aws.String("Server access via r53-ufw"),
 		},
-		HostedZoneId: aws.String(argv[0]),
+		HostedZoneId: aws.String(r53Sess.ZoneID),
 	}
 	var resp *route53.ChangeResourceRecordSetsOutput
-	resp, err := r53Sess.ChangeResourceRecordSets(params)
+	resp, err := r53Sess.session.ChangeResourceRecordSets(params)
 	utils.ExitIfError(err)
-	waitForChange(r53Sess, resp.ChangeInfo)
-	if debug == true {
+	r53Sess.waitForChange(resp.ChangeInfo)
+	if r53Sess.Debug == true {
 		fmt.Printf("\n--< ** START DEBUG INFO : AddDelModRecord >--\n")
 		fmt.Println(resp)
 		fmt.Print("Press 'Enter' to continue...")
