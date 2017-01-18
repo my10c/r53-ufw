@@ -39,24 +39,25 @@ package utils
 
 import (
 	"fmt"
-	"os"
-	"path"
-	"time"
-	"strconv"
 	"log"
 	"net"
+	"os"
+	"path"
+	"strconv"
+	"strings"
+	"time"
 )
 
 var (
-	now = time.Now()
-	MyProgname = path.Base(os.Args[0])
-	myAuthor = "Luc Suryo"
-	myCopyright = "Copyright 2016 - " + strconv.Itoa(now.Year()) + " ©BadAssOps inc"
-	myLicense = "BSD, http://www.freebsd.org/copyright/freebsd-license.html"
-	MyVersion = "0.2"
-	myEmail = "<luc@badassops.com>"
-	MyInfo = MyProgname + " " + MyVersion + "\n" + myCopyright + "\nLicense" + myLicense + "\nWritten by " + myAuthor + " " + myEmail + "\n"
-	MyUsage = "[--name=username] [--ip=ip-address] [--action=action-name] <--profile=profile-name> <--perm> <--debug>"
+	now           = time.Now()
+	MyProgname    = path.Base(os.Args[0])
+	myAuthor      = "Luc Suryo"
+	myCopyright   = "Copyright 2016 - " + strconv.Itoa(now.Year()) + " ©BadAssOps inc"
+	myLicense     = "BSD, http://www.freebsd.org/copyright/freebsd-license.html"
+	MyVersion     = "0.2"
+	myEmail       = "<luc@badassops.com>"
+	MyInfo        = MyProgname + " " + MyVersion + "\n" + myCopyright + "\nLicense" + myLicense + "\nWritten by " + myAuthor + " " + myEmail + "\n"
+	MyUsage       = "[--name=username] [--ip=ip-address] [--action=action-name] <--profile=profile-name> <--perm> <--debug>"
 	myDescription = "Program to change your IP in the Route53 zone file, use to allow access to builds server."
 )
 
@@ -87,7 +88,7 @@ func CheckRfc1918Ip(ip string) (bool, string) {
 	return true, "IP is not in RFC1918: " + ip
 }
 
-// Function to show how to setup the aws credentials and the route53 config 
+// Function to show how to setup the aws credentials and the route53 config
 func SetupHelp(profile string) {
 	fmt.Printf("%s", MyInfo)
 	fmt.Printf("Setup the aws credentials file:")
@@ -127,7 +128,7 @@ func Help(profile string) {
 	fmt.Printf("\t\t\tfor temporary location for Luc while in Leuven you will use luc-leuven.\n")
 	fmt.Printf("\t\t\tVictor while working at his parent house, victor-parents.\n")
 	fmt.Printf("\t[5]\tOptional, default to '%s', the name has to match in both configuration files.\n", profile)
-	fmt.Printf("\t\tCall " + MyProgname  +" with the --setup flag for more information about the configuration files.\n")
+	fmt.Printf("\t\tCall " + MyProgname + " with the --setup flag for more information about the configuration files.\n")
 }
 
 // function to print action result
@@ -145,5 +146,5 @@ func PrintActionResult(argv ...string) {
 
 // Function to create a array of the argument to be passed to a command exec
 func MakeCmdArgs(args ...string) []string {
-	return append([]string{args[0]}, args[1:]...)
+	return strings.Fields(strings.Join(args, " "))
 }

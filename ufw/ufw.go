@@ -33,38 +33,34 @@
 // 	Date:			Author:		Info:
 //	Jan 9, 2017		LIS			First Release
 //
+// TODO: create better rule for delete and search, example :
+// current we need to mtach the rule as ufw shows it
+// need to be able convert  -> allow from 25.0.0.8 to any port 22 proto tcp
+// into                     -> 22/tcp allow 25.0.0.8
 
-//package ufw
-package main
+package ufw
 
 import (
- 	"fmt"
-	"sync"
- 	"os"
+	"fmt"
 	"os/exec"
-	//"bytes"
-	"strings"
 	"regexp"
+	"strconv"
+	"strings"
+	"sync"
 
 	"github.com/my10c/r53-ufw/utils"
-
-// 	"path"
-// 	"time"
- 	"strconv"
-// 	"log"
-// 	"net"
 )
 
-
 const (
-	cmdUFW string = "/usr/sbin/ufw"
-	cmdStatus string = "status"
-	cmdAllow string = "allow"
-	cmdDeny string = "deny"
-	cmdReject string = "reject"
-	cmdInsert string = "insert"
-	cmdDelete string = "delete"
+	cmdUFW      string = "/usr/sbin/ufw"
+	cmdStatus   string = "status"
+	cmdAllow    string = "allow"
+	cmdDeny     string = "deny"
+	cmdReject   string = "reject"
+	cmdInsert   string = "insert"
+	cmdDelete   string = "delete"
 	optNumbered string = "numbered"
+	optForce    string = "--force"
 )
 
 var (
@@ -77,16 +73,23 @@ var (
 )
 
 type ufwExec struct {
-	mu sync.Mutex
+	mu     sync.Mutex
 	status bool
-	rules []string
+	rules  []string
 }
 
 type ufwRule string
 
-type Interface interface {
+type UFW interface {
+	getStatus() bool
+	updateRules() bool
+	showRules(lock int)
+	searchRules(rule string) (int, bool)
+	deleteRule(argv ...string) bool
+	addRule(argv ...string) bool
 }
 
+// Function to create a string witn no double white spaces and no ['s nor ]'s
 func (ufwRule) ufwRuleStr(rule string) string {
 	no_brackets := re_brks.ReplaceAllString(rule, "")
 	no_double_white_spaces := re_whtsp.ReplaceAllString(no_brackets, " ")
@@ -94,6 +97,7 @@ func (ufwRule) ufwRuleStr(rule string) string {
 	return strings.ToLower(cleaned)
 }
 
+// Function to convert the first element into an integer from string
 func (ufwRule) ufwRuleInt(rule string) (int, bool) {
 	rule_str := strings.Fields(rule)[0]
 	rule_nr, err := strconv.Atoi(string(rule_str))
@@ -103,9 +107,10 @@ func (ufwRule) ufwRuleInt(rule string) (int, bool) {
 	return 0, false
 }
 
-func New() (*ufwExec) {
+// Fucntion to create a ufwExec object and fill the status and rules if applicable (status == active)
+func New() *ufwExec {
 	var my_status bool
-	var my_rules [] string = nil
+	var my_rules []string = nil
 	var curr_rule ufwRule
 	status_args := utils.MakeCmdArgs(cmdStatus)
 	status_out, _ := exec.Command(cmdUFW, status_args...).Output()
@@ -117,66 +122,82 @@ func New() (*ufwExec) {
 	}
 	if my_status == true {
 		rules_args := utils.MakeCmdArgs(cmdStatus, optNumbered)
-		rules_out, err := exec.Command(cmdUFW, rules_args...).Output()
-		if err == nil {
+		if rules_out, err := exec.Command(cmdUFW, rules_args...).Output(); err == nil {
 			rules := strings.Split(string(rules_out), "\n")
 			for idx := range rules {
 				// skip empty lines
 				if len(rules[idx]) > 0 {
 					// we need the rules only and we know is always starts with the char '['
 					if strings.HasPrefix(rules[idx], "[") {
-		 				my_rules = append(my_rules, curr_rule.ufwRuleStr(rules[idx]))
-		 			}
-		 		}
+						my_rules = append(my_rules, curr_rule.ufwRuleStr(rules[idx]))
+					}
+				}
 			}
 		}
 	}
-	iptE := &ufwExec {
+	iptE := &ufwExec{
 		status: my_status,
-		rules: my_rules,
+		rules:  my_rules,
 	}
 	return iptE
 }
 
+// Function to print the UFW rule of an ufwExec object
+func (ufwExec *ufwExec) showRules() bool {
+	if len(ufwExec.rules) == 0 {
+		return false
+	}
+	for idx := range ufwExec.rules {
+		fmt.Printf("-< rule: %s >-\n", ufwExec.rules[idx])
+	}
+	return true
+}
+
+// Function to get the UFW status
 func (ufwExec *ufwExec) getStatus() bool {
 	args := utils.MakeCmdArgs(cmdStatus)
-	ufwExec.mu.Lock()
-	defer ufwExec.mu.Unlock()
-	out, _ := exec.Command(cmdUFW, args...).Output()
-	status := strings.Fields((string(strings.Split(string(out), "\n")[0])))[1]
+	output, _ := exec.Command(cmdUFW, args...).Output()
+	status := strings.Fields((string(strings.Split(string(output), "\n")[0])))[1]
 	if strings.Contains(string(status), "inactive") {
 		return false
 	}
 	return true
 }
 
-func (ufwExec *ufwExec) getRules() ([]string, bool) {
+// Function to update the rules (in memory) of an ufwExec object
+func (ufwExec *ufwExec) updateRules(lock int) bool {
 	status := ufwExec.getStatus()
 	if status == false {
-		return nil, false
+		return false
 	}
 	args := utils.MakeCmdArgs(cmdStatus, optNumbered)
-	ufwExec.mu.Lock()
-	defer ufwExec.mu.Unlock()
-	out, err := exec.Command(cmdUFW, args...).Output()
-	if err != nil {
-		return nil, false
+	if lock == 1 {
+		ufwExec.mu.Lock()
+		defer ufwExec.mu.Unlock()
 	}
+	output, err := exec.Command(cmdUFW, args...).Output()
+	if err != nil {
+		return false
+	}
+	ufwExec.rules = nil
 	var curr_rule ufwRule
-	rules := strings.Split(string(out), "\n")
-	var rules_out []string = nil	
+	rules := strings.Split(string(output), "\n")
+	var rules_out []string = nil
 	for idx := range rules {
 		// skip empty lines
 		if len(rules[idx]) > 0 {
 			// we need the rules only and we know is always starts with the char '['
 			if strings.HasPrefix(rules[idx], "[") {
-	 			rules_out = append(rules_out, curr_rule.ufwRuleStr(rules[idx]))
-	 		}
-	 	}
-	 }
-	return rules_out, true
+				rules_out = append(rules_out, curr_rule.ufwRuleStr(rules[idx]))
+			}
+		}
+	}
+	ufwExec.rules = rules_out
+	return true
 }
 
+// Function to search for a rule in the ufwExec object's rules (current in memory)
+// this is a very simple search! see TODO above
 func (ufwExec *ufwExec) searchRules(rule string) (int, bool) {
 	var rule_nr int = 0
 	var result bool = false
@@ -197,11 +218,54 @@ func (ufwExec *ufwExec) searchRules(rule string) (int, bool) {
 	return rule_nr, result
 }
 
-func main() {
-	e := New()
-	rules_nr, err := e.searchRules("allow in 25.0.0.7")
-	if err == true {
-		fmt.Printf("-< %d >-\n", rules_nr)
+// Function to delete the given rule
+// this is a very simple, see TODO above
+func (ufwExec *ufwExec) deleteRules(argv ...string) bool {
+	rule := strings.Join(utils.MakeCmdArgs(argv...), " ")
+	rule_int, hit := ufwExec.searchRules(rule)
+	if hit == false {
+		fmt.Printf("-< rule does not exist: %s. >-\n", rule)
+		return false
 	}
-	os.Exit(0)
+	rule_str := strconv.Itoa(rule_int)
+	delete_args := utils.MakeCmdArgs(optForce, cmdDelete, rule_str)
+	ufwExec.mu.Lock()
+	defer ufwExec.mu.Unlock()
+	if err := exec.Command(cmdUFW, delete_args...).Run(); err != nil {
+		fmt.Printf("-< failed deleting the rule: %s. >-\n", rule)
+		return false
+	}
+	result := ufwExec.updateRules(0)
+	if result == false {
+		fmt.Printf("-< failed update the rules.\n")
+		return false
+	}
+	return true
+}
+
+// Function to add the given rule
+// this is a very simple, see TODO above
+func (ufwExec *ufwExec) addRules(argv ...string) bool {
+	rule := strings.Join(utils.MakeCmdArgs(argv...), " ")
+	add_args := utils.MakeCmdArgs(rule)
+	ufwExec.mu.Lock()
+	defer ufwExec.mu.Unlock()
+	output, err := exec.Command(cmdUFW, add_args...).Output()
+	if err != nil {
+		fmt.Printf("-< failed adding the rule: %s. >-\n", add_args)
+		fmt.Println(err)
+		fmt.Printf("--> %s <--\n", output)
+		return false
+	}
+	// UFW will return 0 if the rule exist! so we need to test again stdout: 'Skipping adding existing rule'
+	if strings.Contains(string(output), "Skipping adding existing rule") {
+		fmt.Printf("-< rule already exist: %s. >-\n", rule)
+		return false
+	}
+	result := ufwExec.updateRules(0)
+	if result == false {
+		fmt.Printf("-< failed update the rules.\n")
+		return false
+	}
+	return true
 }
