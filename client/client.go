@@ -43,10 +43,11 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	//	"log"
 	"bufio"
+	"fmt"
+	"log"
+	"os"
+
 	"github.com/my10c/r53-ufw/initialze"
 	"github.com/my10c/r53-ufw/r53cmds"
 	"github.com/my10c/r53-ufw/utils"
@@ -55,14 +56,14 @@ import (
 )
 
 var (
-	logfile       string = "/tmp/alibaba.out"
-	configName    string = "route53"
+	logfile       string = "/tmp/r53-ufw-client.out"
+	configName    string = "/route53"
 	configAWSPath string = "/.aws"
-	configPath    string
 	profileName   string = "r53-ufw"
 	r53TtlRec            = 300
-	r54RecType    string = route53.RRTypeA
+	r53RecType    string = route53.RRTypeA
 	debug         bool   = false
+	admin         bool   = false
 )
 
 func main() {
@@ -72,28 +73,31 @@ func main() {
 	var resultTxtRec bool = false
 
 	// initialization
-	configPath = os.Getenv("HOME") + configAWSPath
-	initialze.InitLog(logfile)
-	r53TxtRec, r53Action, r53RecName, r53RecValue, profileName, debug := initialze.InitArgs(profileName)
-	zoneName, zoneID := initialze.GetConfig(debug, profileName, configName, configPath)
-	mySess := r53cmds.New(debug, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
+	configFile := os.Getenv("HOME") + configAWSPath + configName
+	fp := initialze.InitLog(logfile)
+	defer fp.Close()
+	r53TxtRec, r53Action, r53RecName, r53RecValue, profileName, debug := initialze.InitArgsClient(profileName)
+	configInfos := initialze.GetConfig(debug, profileName, configFile)
+	zoneName := string(configInfos[0])
+	zoneID := string(configInfos[1])
+	mySess := r53cmds.New(admin, debug, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
 
 	if r53Action == "list" {
 		mySess.FindRecords(r53RecName, 0)
 		os.Exit(0)
 	}
 	if r53TxtRec == true {
-		r54RecType = route53.RRTypeTxt
+		r53RecType = route53.RRTypeTxt
 		resultTxtRec = mySess.SearchRecord(route53.RRTypeTxt)
 	}
 
 	// let do some work ahead since we will need it
 	resultARec = mySess.SearchRecord(route53.RRTypeA)
 
-	// just for debug, need to set debug tp true and then recompile
+	// just for debug
 	if mySess.Debug == true {
 		fmt.Printf("\n--< ** START DEBUG INFO : main >--\n")
-		fmt.Printf("configPath		: %s\n", configPath)
+		fmt.Printf("configFile		: %s\n", configFile)
 		fmt.Printf("profileName		: %s\n", profileName)
 		fmt.Printf("zoneName		: %s\n", mySess.ZoneName)
 		fmt.Printf("zoneID			: %s\n", mySess.ZoneID)
@@ -119,14 +123,14 @@ func main() {
 			result := mySess.AddDelModRecord(r53RecValue, "add", route53.RRTypeA)
 			if result == false {
 				fmt.Printf("-< failed to add A-record >-\n")
-				//log.Printf("-< failed to add A-record >-\n")
+				log.Printf("-< failed to add A-record >-\n")
 				os.Exit(1)
 			}
 			utils.PrintActionResult(action, r53RecName, r53RecValue, "IP")
 		}
 		if resultARec == true {
 			fmt.Printf("-< A-record already exist, check with action list to see value(s) >-\n")
-			//log.Printf("-< A-record already exist >-\n")
+			log.Printf("-< A-record already exist >-\n")
 			os.Exit(1)
 		}
 		// perm was given we need to add the TXT record
@@ -135,16 +139,16 @@ func main() {
 				result := mySess.AddDelModRecord(r53RecValue, "add", route53.RRTypeTxt)
 				if result == false {
 					fmt.Printf("-< failed to add TXT-record >-\n")
-					//log.Printf("-< failed to add TXT-record >-\n")
+					log.Printf("-< failed to add TXT-record >-\n")
 					os.Exit(1)
 				}
 			}
 			if resultTxtRec == true {
 				fmt.Printf("-< TXT-record already exist, check with action list to see value(s) >-\n")
-				//log.Printf("-< TXT-record already exist >-\n")
+				log.Printf("-< TXT-record already exist >-\n")
 				os.Exit(1)
 			}
-			// utils.PrintActionResult(action, r53RecName, r53cmds.TxtPrefix+r53RecValue, "TXT")
+			utils.PrintActionResult(action, r53RecName, r53cmds.TxtPrefix+r53RecValue, "TXT")
 		}
 	case "del":
 		action = "Delete record"
@@ -152,14 +156,14 @@ func main() {
 			result := mySess.AddDelModRecord(r53RecValue, "del", route53.RRTypeA)
 			if result == false {
 				fmt.Printf("-< failed to delete A-record >-\n")
-				//log.Printf("-< failed to delete A-record >-\n")
+				log.Printf("-< failed to delete A-record >-\n")
 				os.Exit(1)
 			}
 			utils.PrintActionResult(action, r53RecName, r53RecValue, "IP")
 		}
 		if resultARec == false {
 			fmt.Printf("-< record does not exist, check with action list to see value(s) >-\n")
-			//log.Printf("-< record does not exist >-\n")
+			log.Printf("-< record does not exist >-\n")
 			os.Exit(1)
 		}
 		// perm was given we need to delete the TXT record
@@ -168,16 +172,16 @@ func main() {
 				result := mySess.AddDelModRecord(r53RecValue, "del", route53.RRTypeTxt)
 				if result == false {
 					fmt.Printf("-< failed to delete TXT-record >-\n")
-					//log.Printf("-< failed to delete TXT-record >-\n")
+					log.Printf("-< failed to delete TXT-record >-\n")
 					os.Exit(1)
 				}
 			}
 			if resultTxtRec == false {
 				fmt.Printf("-< TXT-record does not exist, check with action list to see value(s) >-\n")
-				//log.Printf("-< TXT-record does not exist >-\n")
+				log.Printf("-< TXT-record does not exist >-\n")
 				os.Exit(1)
 			}
-			// utils.PrintActionResult(action, aimUserName, r53cmds.TxtPrefix+r53RecValue, "TXT")
+			utils.PrintActionResult(action, mySess.IAMUserName, r53cmds.TxtPrefix+r53RecValue, "TXT")
 		}
 	case "mod":
 		action = "Modify record"
@@ -186,14 +190,14 @@ func main() {
 				resultModDel := mySess.AddDelModRecord(r53RecValue, "mod", route53.RRTypeA)
 				if resultModDel == false {
 					fmt.Printf("-< failed modify the A-record >-\n")
-					//log.Printf("-< failed modify the A-record >-\n")
+					log.Printf("-< failed modify the A-record >-\n")
 					os.Exit(1)
 				}
 				utils.PrintActionResult(action, r53RecName, r53RecValue, "IP")
 			}
 			if resultARec == false {
 				fmt.Printf("-< A-record does not exist, check with action list to see value(s) >-\n")
-				//log.Printf("-< record does not exist >-\n")
+				log.Printf("-< record does not exist >-\n")
 				os.Exit(1)
 			}
 		}
@@ -202,14 +206,14 @@ func main() {
 				resultModDel := mySess.AddDelModRecord(r53RecValue, "mod", route53.RRTypeTxt)
 				if resultModDel == false {
 					fmt.Printf("-< failed modify the TXT-record >-\n")
-					//log.Printf("-< failed modify the TXT-record >-\n")
+					log.Printf("-< failed modify the TXT-record >-\n")
 					os.Exit(1)
 				}
 				//utils.PrintActionResult(action, aimUserName, r53cmds.TxtPrefix+r53RecValue, "TXT")
 			}
 			if resultTxtRec == false {
 				fmt.Printf("-< TXT-record does not exist, check with action list to see value(s) >-\n")
-				//log.Printf("-< record does not exist >-\n")
+				log.Printf("-< record does not exist >-\n")
 				os.Exit(1)
 			}
 		}

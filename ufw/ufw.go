@@ -144,10 +144,11 @@ func New() *ufwExec {
 }
 
 // Function to print the UFW rule of an ufwExec object
-func (ufwExec *ufwExec) showRules() bool {
+func (ufwExec *ufwExec) ShowRules() bool {
 	if len(ufwExec.rules) == 0 {
 		return false
 	}
+	fmt.Printf("-[ Rule-# | To | Action | From ]-\n")
 	for idx := range ufwExec.rules {
 		fmt.Printf("-< rule: %s >-\n", ufwExec.rules[idx])
 	}
@@ -221,7 +222,7 @@ func (ufwExec *ufwExec) searchRules(rule string) (int, bool) {
 
 // Function to delete the given rule
 // this is a very simple, see TODO above
-func (ufwExec *ufwExec) deleteRules(argv ...string) bool {
+func (ufwExec *ufwExec) DeleteRule(argv ...string) bool {
 	rule := strings.Join(utils.MakeCmdArgs(argv...), " ")
 	rule_int, hit := ufwExec.searchRules(rule)
 	if hit == false {
@@ -246,7 +247,7 @@ func (ufwExec *ufwExec) deleteRules(argv ...string) bool {
 
 // Function to add the given rule
 // this is a very simple, see TODO above
-func (ufwExec *ufwExec) addRules(argv ...string) bool {
+func (ufwExec *ufwExec) AddRule(argv ...string) bool {
 	rule := strings.Join(utils.MakeCmdArgs(argv...), " ")
 	add_args := utils.MakeCmdArgs(rule)
 	ufwExec.mu.Lock()

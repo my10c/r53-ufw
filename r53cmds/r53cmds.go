@@ -54,7 +54,7 @@ import (
 )
 
 var (
-	TxtPrefix string = "Permanent to: "
+	TxtPrefix string = "Permanent IP Set to: "
 )
 
 type r53 struct {
@@ -67,6 +67,7 @@ type r53 struct {
 	Debug       bool
 	ARecords    map[string]string
 	TxtRecords  map[string]string
+	Admin       bool
 }
 
 // Function to quote a given string
@@ -84,7 +85,7 @@ func quoteValues(vals []string) string {
 // 1 zoneName
 // 2 zoneID
 // 3 userName : given from command line, --name flag
-func New(debug bool, ttl int, argv ...string) *r53 {
+func New(admin bool, debug bool, ttl int, argv ...string) *r53 {
 	mySess, aimUserName := initialze.InitSession(argv[0], argv[1])
 	r53S := &r53{
 		session:     mySess,
@@ -94,8 +95,11 @@ func New(debug bool, ttl int, argv ...string) *r53 {
 		UserName:    argv[3],
 		Ttl:         ttl,
 		Debug:       debug,
+		ARecords:    make(map[string]string),
+		TxtRecords:  make(map[string]string),
+		Admin:       admin,
 	}
-	// ARecords, TxtRecords := mySess.FindRecords("", "new")
+	r53S.FindRecords("", 1)
 	return r53S
 }
 
@@ -122,12 +126,9 @@ func (r53Sess *r53) waitForChange(change *route53.ChangeInfo) {
 // Function to display all A and TXT records
 // mode 0 = print result, return nothing
 // mode 1 =  do not print resultm return records in map
-func (r53Sess *r53) FindRecords(userName string, mode int) (map[string]string, map[string]string) {
+func (r53Sess *r53) FindRecords(userName string, mode int) {
 	var err error
 	var hit bool
-	aRecords := make(map[string]string)
-	txtRecords := make(map[string]string)
-
 	hit = false
 	req := route53.ListResourceRecordSetsInput{
 		HostedZoneId: &r53Sess.ZoneID,
@@ -162,10 +163,10 @@ func (r53Sess *r53) FindRecords(userName string, mode int) (map[string]string, m
 						fmt.Printf("-< Name: %s \t%s: %s >-\n", *rrset.Name, ipOrTxt, data)
 					} else {
 						if ipOrTxt == "IP" {
-							aRecords[*rrset.Name] = data
+							r53Sess.ARecords[*rrset.Name] = data
 						}
 						if ipOrTxt == "TXT" {
-							txtRecords[*rrset.Name] = data
+							r53Sess.TxtRecords[*rrset.Name] = data
 						}
 					}
 				}
@@ -183,15 +184,9 @@ func (r53Sess *r53) FindRecords(userName string, mode int) (map[string]string, m
 	if hit == false && userName != "" {
 		if mode == 0 {
 			fmt.Printf("-< No record foond with the give name: %s >-\n", userName)
-		} else {
-			return nil, nil
 		}
 	}
-	if mode == 0 {
-		return nil, nil
-	} else {
-		return aRecords, txtRecords
-	}
+	return
 }
 
 // Function to search if the given record exist in the zone
@@ -238,12 +233,17 @@ func (r53Sess *r53) SearchRecord(argv ...string) bool {
 // 0 ip string or text string
 // 1 mode string
 // 2 recordType string
+// 3 recond name for admin only
 func (r53Sess *r53) AddDelModRecord(argv ...string) bool {
-	if strings.HasPrefix(r53Sess.UserName, r53Sess.IAMUserName) == false {
-		fmt.Printf("-< !! the record name must start with your AIM username (%s) !! >-\n", r53Sess.IAMUserName)
-		os.Exit(2)
+	if r53Sess.Admin == false {
+		if strings.HasPrefix(r53Sess.UserName, r53Sess.IAMUserName) == false {
+			fmt.Printf("-< !! the record name must start with your AIM username (%s) !! >-\n", r53Sess.IAMUserName)
+			os.Exit(2)
+		}
 	}
 	var action string
+	var rec_name string
+	var value string
 	switch argv[1] {
 	case "add":
 		action = "CREATE"
@@ -254,8 +254,11 @@ func (r53Sess *r53) AddDelModRecord(argv ...string) bool {
 	default:
 		return false
 	}
-	var rec_name = r53Sess.UserName + "." + r53Sess.ZoneName + "."
-	var value string
+	if r53Sess.Admin == false {
+		rec_name = r53Sess.UserName + "." + r53Sess.ZoneName + "."
+	} else {
+		rec_name = argv[3]
+	}
 	if argv[2] == route53.RRTypeTxt {
 		var txt_value []string
 		txt_value = append(txt_value, TxtPrefix+argv[0])
