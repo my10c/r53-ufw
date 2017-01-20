@@ -180,15 +180,24 @@ func InitLog(logfile string) {
 func InitArgs(mode string, profile string) []string {
 	var errored int = 0
 	var actionList string
+	var nameInfo string
+	var ipInfo string
 	var valFiller string
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", help.MyProgname)
 		flag.PrintDefaults()
 	}
-	if mode == "server" {
-		actionList = " cleanup, update, listufw and listdns."
-	} else {
+	switch mode {
+	case "server":
+		actionList = "cleanup, update, listufw and listdns."
+	case "admin":
+		actionList = "add, del, mod, list, cleanup, update, listufw and listdns."
+		nameInfo = "This name of the record to be created."
+		ipInfo = "The public IP to associate to the record to be created."
+	case "client":
 		actionList = " add, del, mod and list."
+		nameInfo = "This must be your IAM username, add a suffix for multiple record."
+		ipInfo = "The IP address to assign to yours dns record, this must be a public IP."
 	}
 	version := flag.Bool("version", false, "prints current version and exit.")
 	setup := flag.Bool("setup", false, "show how to setup your AWS credentials and then exit.")
@@ -200,8 +209,8 @@ func InitArgs(mode string, profile string) []string {
 	// flags for client and admin only
 	if mode == "client" || mode == "admin" {
 		myPerm := flag.Bool("perm", false, "Mark record as permanent.")
-		flag.Var(&myName, "name", "This must be your IAM username, add a suffix for multiple record.")
-		flag.Var(&myIP, "ip", "The IP address to assign to yours dns record, this must be a public IP.")
+		flag.Var(&myName, "name", nameInfo)
+		flag.Var(&myIP, "ip", ipInfo)
 		flag.Parse()
 		if *myPerm {
 			myTXTRequired = true
@@ -242,6 +251,10 @@ func InitArgs(mode string, profile string) []string {
 		case "listufw":
 			admin_break = 1
 		case "listdns":
+			admin_break = 1
+		case "cleanup":
+			admin_break = 1
+		case "update":
 			admin_break = 1
 		case "add":
 		case "del":

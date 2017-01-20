@@ -108,14 +108,14 @@ func Help(mode string, profile string) {
 	var myUsage string
 	switch mode {
 	case "server":
-		actionList = " cleanup, update, listufw and listdns."
+		actionList = "cleanup, update, listufw and listdns."
+		myUsage = "[--name=username] [--ip=ip-address] [--action=action] <--profile=profile-name> <--perm> <--debug>"
+	case "admin":
+		actionList = "add, del, mod, list,cleanup, update, listufw and listdns."
 		myUsage = "[--name=username] [--ip=ip-address] [--action=action] <--profile=profile-name> <--perm> <--debug>"
 	case "client":
-		actionList = " add, del, mod and list."
+		actionList = "add, del, mod and list."
 		myUsage = "[--action=action] <--profile=profile-name> <--debug>"
-	case "admin":
-		actionList = " add, del, mod, list, listufw and listdns."
-		myUsage = "[--name=username] [--ip=ip-address] [--action=action] <--profile=profile-name> <--perm> <--debug>"
 	}
 	fmt.Printf("%s", MyInfo)
 	fmt.Printf("Usage : %s [-h] %s\n", MyProgname, myUsage)
@@ -123,33 +123,37 @@ func Help(mode string, profile string) {
 	fmt.Printf("\t--profile\tProfile name (also call section) to use in the configuration files.\n")
 	fmt.Printf("\t--debug\t\tEnable debug, warning lots of debug wil be displayed!\n")
 	switch {
-	case mode == "client" || mode == "admin":
+	case mode == "client":
 		fmt.Printf("\t--ip\t\tThis should your be your home IP-address, use http://whatismyip.com to get your IP.\n")
 		fmt.Printf("\t--name\t\tThis is your AWS-IAM username, you can add a suffix for multiple records.\n")
 		fmt.Printf("\t--perm\t\tCreate ({add}) or delete ({del}) the permanent record.\n")
+	case mode == "admin":
+		fmt.Printf("\t--ip\t\tThe IP-address to be used for the A-record.\n")
+		fmt.Printf("\t--name\t\tThe name to be used for the A-record.\n")
+		fmt.Printf("\t--perm\t\tCreate ({add}) or delete ({del}) the permanent record associate with the given name.\n")
 	}
 	fmt.Printf("\n\tNotes\n")
 	fmt.Printf("\t\tRequired flags: {action}.\n")
 	switch {
-	case mode == "client":
+	case mode == "client" || mode == "admin":
 		fmt.Printf("\t\tAddtional required flags: {name} and {ip}, if the action is add, del or mod.\n")
 		fmt.Printf("\t\t - the {name} flag is optional if the action is list.\n")
-		fmt.Printf("\t\tMultiple record must start with your your IAM/AWS username. Use useful names, example:\n")
+		fmt.Printf("\t\tMultiple record must start with your your AWS-IAM username[1]. Use useful names, example:\n")
 		fmt.Printf("\t\t\tluc-be : while luc is in Belgium.\n")
 		fmt.Printf("\t\t\ted-parents : while Ed it at his parent place.\n")
 		fmt.Printf("\t\t\tvictor-la: while Victor is in South California.\n")
 		fmt.Printf("\t\tYou can only have one record permanent! Permanent is done via creating a matchting\n")
-		fmt.Printf("\t\t - TXT record with your IAM username!\n")
+		fmt.Printf("\t\t - TXT record with your IAM username![1]\n")
 		fmt.Printf("\t\tNote that none permanent record will be removed everyday by a scheduled job.\n")
-	case mode == "server":
+	case mode == "server" || mode == "admin":
 		fmt.Printf("\t\tupdate: add any IP found in the A-record to UFW if it does not exist.\n")
 		fmt.Printf("\t\tcleanup: remove the UFW rule(s) and DNS record of found DNS A-record that\n")
-		fmt.Printf("\t\t - does not have a DNS TXT-record. The TXT-record is always the user's IAM username\n")
-	case mode == "server" || mode == "admin":
+		fmt.Printf("\t\t - does not have a DNS TXT-record. The TXT-record is always the user's AWS-IAM username\n")
 		fmt.Printf("\t\tlistufw: list the current UFW rules.\n")
 		fmt.Printf("\t\tlistdns: list the current DNS records, A- and TXT-records only.\n")
 	}
 	fmt.Printf("\t\t{profile} is optional, default to '%s'.\n", profile)
 	fmt.Printf("\t\t - The {profile} name must match in both configuration files.\n")
+	fmt.Printf("\t\t[1] The admin tool does not required to use your AWS-IAM username.\n")
 	fmt.Printf("\t\tCall " + MyProgname + " with the {setup} flag for more information how to setup the configuration files.\n")
 }

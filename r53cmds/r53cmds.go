@@ -263,7 +263,7 @@ func (r53Sess *r53) AddDelModRecord(argv ...string) bool {
 		}
 	} else {
 		// admin has no restriction
-		rec_name = argv[3]
+		rec_name = r53Sess.UserName + "." + r53Sess.ZoneName + "."
 	}
 	if argv[2] == route53.RRTypeTxt {
 		var txt_value []string
