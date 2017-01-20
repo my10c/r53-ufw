@@ -3,12 +3,12 @@
 
 ## Background
 
-Imagine you have to manage access to a server for engineers that works from home
+Imagine you have to manage access to servers for engineers that works from home
 (and they do not have a static IP, it can change anytime) or they are temporary at
 a remote location and make things more fun they are in a different
-timezone too. Like a good secure setup the sever is protected by some firewall rule (UFW),
-so now you have to wake-up, login to the server (hopely there is only 1 server?),
-adjustment to the firewall rule. Go back to bed and remember to cleanup these rules... fun right?
+timezone too. Like a good secure setup the servers are protected by some firewall (UFW),
+so now you have to wake-up, login to the servers (hopely there are not to many?),
+make adjustment to the firewall rule. Go back to bed and remember to cleanup these rules... fun right?
 
 ### A solution
 
@@ -29,16 +29,20 @@ Server ----> read  ---> AWS Route53 --> private zone
 #### Client side
 With a single binary, written in Go, they can add records to a private AWS Route53 zone,
 to make it secure the record they can manage will always starts with their AWS IAM username,
-and they can create/delete/modify one TXT-record and multiple A records.
+and they can only create/delete/modify one TXT-record and but are allow to create/delete/modify
+multiple A records.
+
 Example:
 
-while Momo is in Brussel create the record, with the help of http://whatismyip.com get the IP-address
+while Momo is in Brussel, he creates a temporary record, with the help of http://whatismyip.com get the IP-address,
+call the client and the record is add:
 
 ```
 momo-brussel IN A 77.77.77.77
 ```
 
-create a record and mark the IP permanent, say from Momo's home, also using http://whatismyip.com
+back home Momo create a record and mark the IP permanent, also using http://whatismyip.com, he
+creates the record and mark it permanent, and the following records are then created:
 
 ```
 momo  IN  A 66.66.66.66
@@ -64,7 +68,7 @@ Lets run a crontabs  on the server that every 5 mins:
 3. By the second run its does the same thins, UFW takes care to ignore already added rules.
 
 ```
-pulll records from a DNS zone (AWS Route53) and based on these adjust the firewall rule
+pulll records from a DNS zone (AWS Route53) and based on these adjust the firewall rules
 ```
 
 4. Then Once a day the server pulls again, and any IP in the firewall rule that does not have a TXT-record is removed.
@@ -172,3 +176,6 @@ Setup the aws credentials file:
 		the default profile is r53-ufw and it has to match in both files: 'credentials' and 'route53'.
 		If you like to use a different name you will always need to use the --profile flag.
 ```
+
+#### the r53-ufw-admin
+more to come : the admin app
