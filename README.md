@@ -63,18 +63,26 @@ you get from the Internet provider can change everyday!
 
 ### Server side
 Lets run a crontabs  on the server that every 5 mins:
-1. it will pulls all A-records and TXT-records.
+Tasks 1 : adjust the firewall rules, add new rule
+
+```
+1. pulls all A-records and TXT-records.
 2. First time all A-record IPs will be added to the firewall rule
-3. By the second run its does the same thins, UFW takes care to ignore already added rules.
-
-```
-pulll records from a DNS zone (AWS Route53) and based on these adjust the firewall rules
+3. By the next run its does the same thing, UFW takes care to ignore already added rules.
 ```
 
-4. Then Once a day the server pulls again, and any IP in the firewall rule that does not have a TXT-record is removed.
+Task 2 : remove all none marked permanent rules
 ```
-Cleanup the firewall on any rule that has not been marked permanent
+1. pulls all A-records and TXT-records.
+2. if a A-record does not have a TXT-record then marked that for deletion
+3. based on the port configuration remve all firewall rule for the IP in the A-record with the configure port
+4. delete the A-record
 ```
+
+Note:
+to make things more secure, you must configure the port and protocol of that port (UDP or TCP) that the rule
+applies too. And since we might need to support 3rd party engineer, we have a separate port configs. Mind you
+this is not a complex application, it mean to make your live easy. It can also be improved, welcome!
 
 ## The apps
 
@@ -131,6 +139,11 @@ Setup the aws credentials file:
 
 
 #### the r53-ufw-server
+Do not that it must be run as root and the configuration files are hardcode to be located under
+```
+/etc/aws
+```
+
 ```
 Usage of server:
   -action value
@@ -178,4 +191,8 @@ Setup the aws credentials file:
 ```
 
 #### the r53-ufw-admin
+The admin app is mean to create/delete/modify DNS records without the restriction that the client has, which
+is that the record has to match the user's AWS-IAM username. It meant to administrate 3rd party access.
+Do not that it must be run as root!
+
 more to come : the admin app
