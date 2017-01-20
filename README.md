@@ -32,7 +32,7 @@ to make it secure the record they can manage will always starts with their AWS I
 and they can create/delete/modify one TXT-record and multiple A records.
 Example:
 
-while Momo is in Brussel create the record, with the help of http://whatismyip.com
+while Momo is in Brussel create the record, with the help of http://whatismyip.com get the IP-address
 
 ```
 momo-brussel IN A 77.77.77.77
@@ -53,15 +53,15 @@ r53-ufw-client -action add -name momo -ip 66.66.66.66 -perm
 
 Simple right? Once these record has been create, aboout 5 mins later (depends on your crontab) these IPs has been added to
 the firewall rule. Then the next day the record momo-brussel is automatically remove and so its firewall rule, all automated.
-If the Mono needed the access longer, he then just re-create the record. Mind you in some places the IP address that
-you get can change everyday!
+If Momo needed the access longer, he then just re-create the record. Mind you in some places the IP address that
+you get from the Internet provider can change everyday!
 
 
 ### Server side
 Lets run a crontabs  on the server that every 5 mins:
 1. it will pulls all A-records and TXT-records.
-2. First time all A-record IPs will be added to the firewall rule and keep track of it (simple write it to say /var/lib/r53-ufw/status.
-3. By the second run it will compare the current records vs the pervious pull, then add only the IPs from the delta.
+2. First time all A-record IPs will be added to the firewall rule
+3. By the second run its does the same thins, UFW takes care to ignore already added rules.
 
 ```
 pulll records from a DNS zone (AWS Route53) and based on these adjust the firewall rule
@@ -69,7 +69,7 @@ pulll records from a DNS zone (AWS Route53) and based on these adjust the firewa
 
 4. Then Once a day the server pulls again, and any IP in the firewall rule that does not have a TXT-record is removed.
 ```
-Cleanup the firewall on any ip that has not been marked permanent
+Cleanup the firewall on any rule that has not been marked permanent
 ```
 
 ## The apps
@@ -77,57 +77,98 @@ Cleanup the firewall on any ip that has not been marked permanent
 #### the r53-ufw-client
 
 ```
-r53-ufw-client -help
-Usage of r53-ufw-client:
+Usage of client:
   -action value
-    	Action choice of add, del, mod and list.
+    	Action choices:  add, del, mod and list.
+  -debug
+    	Enable debug.
   -ip value
-    	IP address to assign to yours dns record, this must be your 'home' public IP.
+    	The IP address to assign to yours dns record, this must be a public IP.
   -name value
-    	This must be your username, same as the (yours) dns record, you can add a suffix for multiple record.
+    	This must be your IAM username, add a suffix for multiple record.
   -perm
-    	mark record as permanent.
+    	Mark record as permanent.
   -profile value
     	Profile to use, default to r53-ufw.
   -setup
     	show how to setup your AWS credentials and then exit.
   -version
     	prints current version and exit.
-
 ```
 
 There is even a -setup to help the user to setup the required configuration files
 ```
-r53-ufw-client -setup
-r53-ufw-client 0.2
-Copyright 2016 - 2017 ©BadAssOps inc
-LicenseBSD, http://www.freebsd.org/copyright/freebsd-license.html
+client 0.3
+Copyright 2015 - 2017 ©BadAssOps inc
+LicenseBSD, http://www.freebsd.org/copyright/freebsd-license.html ♥
 Written by Luc Suryo <luc@badassops.com>
 Setup the aws credentials file:
-	1. Get an AWS API key pair from Ops.
-	2. Create the directory .aws in your home dir with the permission 0700.
-	3. Create the file .aws/credentials in your home dir with the permission 0600.
-	4. Add the followong lines in the file .aws/credentials.
+	1. Get an AWS API key pair, region, and the AWS Route53 zone id and zone name.
+	2. Create the directory .aws in your home directory, set permission to 0700.
+	3. Create the file 'credentials' in the same directory as in 2 above and set permission to 0600.
+	4. Add the followong lines in the file 'credentials':
 		[r53-ufw]
-		aws_access_key_id = {your-taws_access_key_id from 1 above}
-		aws_secret_access_key = {aws_secret_access_key from 1 above}
-		region = us-west-2
+		aws_access_key_id = {your-aws_access_key_id from 1 above}
+		aws_secret_access_key = {your-aws_secret_access_key from 1 above}
+		region = {your-aws-region from 1 above}
 
-Setup the route54 configuration file:
-	5. Get the zone id and zone name from Ops.
-	6. Create the file .aws/route53 with the permission 0600.
-	7. Add the followong lines in the file .aws/route53.
+	3. Create the file 'route53' in the same directory as in 2 above and set permission to 0600.
+	4. Add the followong lines in the file 'route53':
 		[r53-ufw]
-		zone_name = {zone name from 5}
-		zone_id = {zone name id 5}
+		zone_name = "{zone name from 1 above}"
+		zone_id = "{zone name id 1 above}"
+		client_log = "path_to_file"		optional, defaut to: /tmp/r53_ufw_client.log
 
-
-	NOTE: the default profile is r53-ufw and it has to match in both files.
-		If you like to use a different name you will always need to use the --profile flag
-
+	NOTE:
+		values in the route53 file must be double quoted.
+		the default profile is r53-ufw and it has to match in both files: 'credentials' and 'route53'.
+		If you like to use a different name you will always need to use the --profile flag.
 ```
 
 
-more info to come...
+#### the r53-ufw-server
+```
+Usage of server:
+  -action value
+    	Action choices:  cleanup, update, listufw and listdns.
+  -debug
+    	Enable debug.
+  -profile value
+    	Profile to use, default to r53-ufw.
+  -setup
+    	show how to setup your AWS credentials and then exit.
+  -version
+    	prints current version and exit.
+```
 
-NOTE: server module is unfinished...
+There is also a -setup to help the user to setup the required configuration files
+```
+server 0.3
+Copyright 2015 - 2017 ©BadAssOps inc
+LicenseBSD, http://www.freebsd.org/copyright/freebsd-license.html ♥
+Written by Luc Suryo <luc@badassops.com>
+Setup the aws credentials file:
+	1. Get an AWS API key pair, region, and the AWS Route53 zone id and zone name.
+	2. Create the directory /etc/aws, set permission to 0700.
+	3. Create the file 'credentials' in the same directory as in 2 above and set permission to 0600.
+	4. Add the followong lines in the file 'credentials':
+		[r53-ufw]
+		aws_access_key_id = {your-aws_access_key_id from 1 above}
+		aws_secret_access_key = {your-aws_secret_access_key from 1 above}
+		region = {your-aws-region from 1 above}
+
+	3. Create the file 'route53' in the same directory as in 2 above and set permission to 0600.
+	4. Add the followong lines in the file 'route53':
+		[r53-ufw]
+		zone_name = "{zone name from 1 above}"
+		zone_id = "{zone name id 1 above}"
+		employee_ports = "port-1/proto,port-2/proto"		proto should be either tcp or udp
+		3rd_parties_ports = "port-1/proto,port-2/proto"		proto should be either tcp or udp
+		3rd_parties_prefix = "prefix"		optional
+		server_log = "path_to_file"		optional, default to: /var/log/r53_ufw_server.log
+
+	NOTE:
+		values in the route53 file must be double quoted.
+		the default profile is r53-ufw and it has to match in both files: 'credentials' and 'route53'.
+		If you like to use a different name you will always need to use the --profile flag.
+```
