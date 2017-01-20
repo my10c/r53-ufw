@@ -1,4 +1,4 @@
-// Copyright (c) 2015 BadAssOps inc
+// Copyright (c) 2015 - 2017 BadAssOps inc
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -30,13 +30,15 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.1
+// Version		:	0.3
 //
 // Date			:	Jan 17, 2017
 //
 // History	:
 // 	Date:			Author:		Info:
-//	Jan 17, 2017		LIS			First Release
+//	Feb 24, 2015	LIS         Beta release
+//	Jan 12, 2017	LIS			Re-write from Python to go
+//	Jan 17, 2017	LIS			Added the option list{ufw|dns}
 //
 
 package main
@@ -44,20 +46,21 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/my10c/r53-ufw/help"
 	"github.com/my10c/r53-ufw/initialze"
 	"github.com/my10c/r53-ufw/r53cmds"
 	"github.com/my10c/r53-ufw/ufw"
+	"github.com/my10c/r53-ufw/utils"
 
 	"github.com/aws/aws-sdk-go/service/route53"
 )
 
 var (
-	logfile       string = "/tmp/r53-ufw-server.out"
+	logfile       string = "/var/log/r53-ufw-server.log"
 	configName    string = "/route53"
 	configAWSPath string = "/etc/aws"
 	profileName   string = "r53-ufw"
@@ -68,59 +71,68 @@ var (
 )
 
 func main() {
-	// befor anything else
+	// before anything else
 	if os.Geteuid() != 0 {
-		fmt.Printf("%s mut run as root\n", help.MyProgname)
+		fmt.Printf("%s must be run as root\n", help.MyProgname)
 		os.Exit(1)
 	}
 	// working variables
-	var ufw_allow string = "allow in"
+	// var ufw_allow string = "allow in"
 	var ufw_allow_from string = "allow from"
-	//var ufw_action string
-	ufw_list := make(map[string]string)
+	workList := make(map[string]string)
 
 	// initialization
 	configFile := configAWSPath + configName
-	fp := initialze.InitLog(logfile)
-	defer fp.Close()
-	serverAction, profileName, debug := initialze.InitArgsServer(profileName)
+	initValue := initialze.InitArgs("server", profileName)
+	if initValue == nil {
+		fmt.Printf("-< Failed initialized the argument! Aborted >-\n")
+		os.Exit(1)
+	}
+	serverAction := initValue[0]
+	profileName := initValue[1]
+	debug, _ := strconv.ParseBool(initValue[2])
 	configInfos := initialze.GetConfig(debug, profileName, configFile)
 	zoneName := string(configInfos[0])
 	zoneID := string(configInfos[1])
 	employeePorts := strings.Split(string(configInfos[2]), ",")
 	thirdPartiesPorts := strings.Split(string(configInfos[3]), ",")
+	thirdPartiesPrefix := string(configInfos[4])
+	myLog := string(configInfos[5])
 	mySess := r53cmds.New(admin, debug, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
-
-	if employeePorts[0] == "" {
-		fmt.Printf("-< employeePorts is not configured >-\n")
-		log.Printf("-< employeePorts is not configured, len %d>-\n", len(employeePorts))
+	if myLog != "" {
+		initialze.InitLog(myLog)
+	} else {
+		initialze.InitLog(logfile)
+	}
+	if thirdPartiesPrefix != "" {
+		mySess.Prefix = thirdPartiesPrefix
+	}
+	if utils.CheckPortsConfig("employeePorts", employeePorts); false {
 		os.Exit(1)
 	}
-	if thirdPartiesPorts[0] == "" {
-		fmt.Printf("-< thirdPartiesPorts is not configured >-\n")
-		log.Printf("-< thirdPartiesPorts is not configured, len %d >-", len(thirdPartiesPorts))
+	if utils.CheckPortsConfig("thirdPartiesPorts", thirdPartiesPorts); false {
 		os.Exit(1)
 	}
 
 	// just for debug, need to set debug tp true and then recompile
 	if mySess.Debug == true {
-		fmt.Printf("\n--< ** START DEBUG INFO : main >--\n")
-		fmt.Printf("configFile        : %s\n", configFile)
-		fmt.Printf("profileName       : %s\n", profileName)
-		fmt.Printf("zoneName          : %s\n", mySess.ZoneName)
-		fmt.Printf("zoneID            : %s\n", mySess.ZoneID)
-		fmt.Printf("employeePorts 	  : %s\n", employeePorts)
-		fmt.Printf("thirdPartiesPorts : %s\n", thirdPartiesPorts)
-		fmt.Printf("serverAction      : %s\n", serverAction)
-		fmt.Printf("r53RecName        : %s\n", mySess.UserName)
-		fmt.Printf("r53TtlRec         : %s\n", mySess.Ttl)
-		fmt.Printf("mySess            : %v\n", mySess)
-		fmt.Printf("aimUserName       : %s\n", mySess.IAMUserName)
-		fmt.Printf("A Records         : %v\n", mySess.ARecords)
-		fmt.Printf("TXT Records       : %v\n", mySess.TxtRecords)
+		utils.StdOutAndLog(fmt.Sprintf("** START DEBUG INFO : main **"))
+		utils.StdOutAndLog(fmt.Sprintf("configFile        : %s", configFile))
+		utils.StdOutAndLog(fmt.Sprintf("profileName       : %s", profileName))
+		utils.StdOutAndLog(fmt.Sprintf("zoneName          : %s", mySess.ZoneName))
+		utils.StdOutAndLog(fmt.Sprintf("zoneID            : %s", mySess.ZoneID))
+		utils.StdOutAndLog(fmt.Sprintf("employeePorts 	   : %s", employeePorts))
+		utils.StdOutAndLog(fmt.Sprintf("thirdPartiesPorts : %s", thirdPartiesPorts))
+		utils.StdOutAndLog(fmt.Sprintf("serverAction      : %s", serverAction))
+		utils.StdOutAndLog(fmt.Sprintf("r53RecName        : %s", mySess.UserName))
+		utils.StdOutAndLog(fmt.Sprintf("r53TtlRec         : %s", mySess.Ttl))
+		utils.StdOutAndLog(fmt.Sprintf("mySess            : %v", mySess))
+		utils.StdOutAndLog(fmt.Sprintf("aimUserName       : %s", mySess.IAMUserName))
+		utils.StdOutAndLog(fmt.Sprintf("A Records         : %v", mySess.ARecords))
+		utils.StdOutAndLog(fmt.Sprintf("TXT Records       : %v", mySess.TxtRecords))
 		fmt.Print("Press 'Enter' to continue...")
 		bufio.NewReader(os.Stdin).ReadBytes('\n')
-		fmt.Printf("\n--< ** END DEBUG INFO >--\n")
+		utils.StdOutAndLog(fmt.Sprintf("** END DEBUG INFO **"))
 	}
 
 	ufw := ufw.New()
@@ -135,19 +147,30 @@ func main() {
 			// if it has no TXT then we need to delete it, both DNS and UFW
 			if _, hit := mySess.TxtRecords[aKey]; !hit {
 				// create the delete record
-				ufw_list[aKey] = aValue
+				workList[aKey] = aValue
 			}
 		}
-		for uKey, uValue := range ufw_list {
-			rule := fmt.Sprintf("%s %s", ufw_allow, uValue)
-			if ufw.DeleteRule(rule); false {
-				fmt.Printf("-< Deleting rule %s failed >-\n", rule)
-				log.Printf("-< Deleting rule %s failed >-\n", rule)
+		for uKey, uValue := range workList {
+			if strings.Contains(uValue, "3rd-party") {
+				for idx := range thirdPartiesPorts {
+					port_proto := strings.Split(thirdPartiesPorts[idx], "/")
+					rule := fmt.Sprintf("delete %s %s to any port %s proto %s", ufw_allow_from, uValue, strings.TrimSpace(port_proto[0]), strings.TrimSpace(port_proto[1]))
+					if ufw.DeleteRule(rule); false {
+						utils.StdOutAndLog(fmt.Sprintf("Deleting the rule %s failed.", rule))
+					}
+				}
+			} else {
+				for idx := range employeePorts {
+					port_proto := strings.Split(employeePorts[idx], "/")
+					rule := fmt.Sprintf("delete %s %s to any port %s proto %s", ufw_allow_from, uValue, strings.TrimSpace(port_proto[0]), strings.TrimSpace(port_proto[1]))
+					if ufw.AddRule(rule); false {
+						utils.StdOutAndLog(fmt.Sprintf("Adding the employee rule %s failed.", rule))
+					}
+				}
 			}
-			result := mySess.AddDelModRecord(uValue, "del", route53.RRTypeA, uKey)
-			if result == false {
-				fmt.Printf("-< failed to delete A-record: %s %s >-\n", uKey, uValue)
-				log.Printf("-< failed to delete A-record: %s %s >-\n", uKey, uValue)
+			// delete the DNS record based on A-record
+			if mySess.AddDelModRecord(uValue, "del", route53.RRTypeA, uKey); false {
+				utils.StdOutAndLog(fmt.Sprintf("Failed to delete the A-record: %s %s.", uKey, uValue))
 			}
 		}
 	case "update":
@@ -158,8 +181,7 @@ func main() {
 					port_proto := strings.Split(thirdPartiesPorts[idx], "/")
 					rule := fmt.Sprintf("%s %s to any port %s proto %s", ufw_allow_from, aValue, strings.TrimSpace(port_proto[0]), strings.TrimSpace(port_proto[1]))
 					if ufw.AddRule(rule); false {
-						fmt.Printf("-< Adding 3rd Party rule %s failed >-\n", rule)
-						log.Printf("-< Adding 3rd Party rule %s failed >-\n", rule)
+						utils.StdOutAndLog(fmt.Sprintf("Adding the 3rd Party rule %s failed.", rule))
 					}
 				}
 			} else {
@@ -167,8 +189,7 @@ func main() {
 					port_proto := strings.Split(employeePorts[idx], "/")
 					rule := fmt.Sprintf("%s %s to any port %s proto %s", ufw_allow_from, aValue, strings.TrimSpace(port_proto[0]), strings.TrimSpace(port_proto[1]))
 					if ufw.AddRule(rule); false {
-						fmt.Printf("-< Adding employee rule %s failed >-\n", rule)
-						log.Printf("-< Adding employee rule %s failed >-\n", rule)
+						utils.StdOutAndLog(fmt.Sprintf("Adding the employee rule %s failed.", rule))
 					}
 				}
 			}

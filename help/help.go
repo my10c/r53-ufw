@@ -1,4 +1,4 @@
-// Copyright (c) BadAssOps inc
+// Copyright (c) 2015 - 2017 BadAssOps inc
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -25,13 +25,14 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.1
+// Version		:	0.2
 //
 // Date			:	Jan 18, 2017
 //
 // History	:
 // 	Date:			Author:		Info:
-//	Jan 18, 2017		LIS			First Release
+//	Feb 24, 2015	LIS			Beta release
+//	Jan 18, 2017	LIS			Re-write from Python to Go
 //
 
 package help
@@ -45,104 +46,110 @@ import (
 )
 
 var (
-	now           = time.Now()
-	MyProgname    = path.Base(os.Args[0])
-	myAuthor      = "Luc Suryo"
-	myCopyright   = "Copyright 2016 - " + strconv.Itoa(now.Year()) + " ©BadAssOps inc"
-	myLicense     = "BSD, http://www.freebsd.org/copyright/freebsd-license.html ♥"
-	MyVersion     = "0.2"
-	myEmail       = "<luc@badassops.com>"
-	MyInfo        = MyProgname + " " + MyVersion + "\n" + myCopyright + "\nLicense" + myLicense + "\nWritten by " + myAuthor + " " + myEmail + "\n"
-	MyUsageClient = "[--name=username] [--ip=ip-address] [--action=action-name] <--profile=profile-name> <--perm> <--debug>"
-	MyUsageServer = "[--action=action-name] <--profile=profile-name> <--debug>"
+	now         = time.Now()
+	MyProgname  = path.Base(os.Args[0])
+	myAuthor    = "Luc Suryo"
+	myCopyright = "Copyright 2015 - " + strconv.Itoa(now.Year()) + " ©BadAssOps inc"
+	myLicense   = "BSD, http://www.freebsd.org/copyright/freebsd-license.html ♥"
+	MyVersion   = "0.3"
+	myEmail     = "<luc@badassops.com>"
+	MyInfo      = MyProgname + " " + MyVersion + "\n" + myCopyright + "\nLicense" + myLicense + "\nWritten by " + myAuthor + " " + myEmail + "\n"
 )
 
 // Function to show how to setup the aws credentials and the route53 config
-func SetupHelpServer(profile string) {
+func SetupHelp(mode string, profile string) {
+	var configAWSPath string
+	var logFileConfigName string
+	switch {
+	case mode == "server":
+		configAWSPath = "/etc/aws"
+		logFileConfigName = "server_log = \"path_to_file\"\t\toptional, default to: /var/log/r53_ufw_server.log"
+	case mode == "admin":
+		configAWSPath = "/etc/aws"
+		logFileConfigName = "admin_log = \"path_to_file\"\t\toptional, default to: /var/log/r53_ufw_admin.log"
+	case mode == "client":
+		configAWSPath = ".aws in your home directory"
+		logFileConfigName = "client_log = \"path_to_file\"\t\toptional, defaut to: /tmp/r53_ufw_client.log"
+	}
 	fmt.Printf("%s", MyInfo)
-	fmt.Printf("Setup the aws credentials file:")
-	fmt.Printf("\n\t1. Get an AWS API key pair read-write for the Route53 Zone .\n")
-	fmt.Printf("\t2. Create the directory /etc/aws with the permission 0700 owned by root.\n")
-	fmt.Printf("\t3. Create the file /etc/aws/credentials with the permission 0600 owend by root.\n")
-	fmt.Printf("\t4. Add the followong lines in the file /etc/aws/credentials.\n")
-	fmt.Printf("\t\t[%s]\n", profile)
-	fmt.Printf("\t\taws_access_key_id = {the-aws_access_key_id from 1 above}\n")
-	fmt.Printf("\t\taws_secret_access_key = {the-aws_secret_access_key from 1 above}\n")
-	fmt.Printf("\t\tregion = us-west-2\n")
-	fmt.Printf("\nSetup the route53 configuration file:")
-	fmt.Printf("\n\t5. Get the zone id and zone name.\n")
-	fmt.Printf("\t6. Create the file /etc/aws/route53 with the permission 0600.\n")
-	fmt.Printf("\t7. Add the followong lines in the file /aws/route53.\n")
-	fmt.Printf("\t\t[%s]\n", profile)
-	fmt.Printf("\t\tzone_name = {zone name from 5}\n")
-	fmt.Printf("\t\tzone_id = {zone name id 5}\n")
-	fmt.Printf("\t\temployee_ports = \"port-1,port-2\"\n")
-	fmt.Printf("\t\t3rd_parties_ports = \"port-1,port-2\"\n")
-	fmt.Printf("\n\n\tNOTE:\n")
-	fmt.Printf("\t\tvalues in the route53 file must be double quoted.\n")
-	fmt.Printf("\t\temployee_ports and \t\temployee_ports is port that need to be\n")
-	fmt.Printf("\t\tallowed in UFW, multiple port separated by comma.\n")
-	fmt.Printf("\t\tthe default profile is %s and it has to match in both files.\n", profile)
-	fmt.Printf("\t\tIf you like to use a different name you will always need to use the --profile flag.\n")
-}
-
-// Function to show how to setup the aws credentials and the route53 config
-func SetupHelpClient(profile string) {
-	fmt.Printf("%s", MyInfo)
-	fmt.Printf("Setup the aws credentials file:")
-	fmt.Printf("\n\t1. Get an AWS API key pair from Ops.\n")
-	fmt.Printf("\t2. Create the directory .aws in your home dir with the permission 0700.\n")
-	fmt.Printf("\t3. Create the file .aws/credentials in your home dir with the permission 0600.\n")
-	fmt.Printf("\t4. Add the followong lines in the file .aws/credentials.\n")
+	fmt.Printf("Setup the aws credentials file:\n")
+	fmt.Printf("\t1. Get an AWS API key pair, region, and the AWS Route53 zone id and zone name.\n")
+	fmt.Printf("\t2. Create the directory %s, set permission to 0700.\n", configAWSPath)
+	fmt.Printf("\t3. Create the file 'credentials' in the same directory as in 2 above and set permission to 0600.\n")
+	fmt.Printf("\t4. Add the followong lines in the file 'credentials':\n")
 	fmt.Printf("\t\t[%s]\n", profile)
 	fmt.Printf("\t\taws_access_key_id = {your-aws_access_key_id from 1 above}\n")
 	fmt.Printf("\t\taws_secret_access_key = {your-aws_secret_access_key from 1 above}\n")
-	fmt.Printf("\t\tregion = us-west-2\n")
-	fmt.Printf("\nSetup the route53 configuration file:")
-	fmt.Printf("\n\t5. Get the zone id and zone name from Ops.\n")
-	fmt.Printf("\t6. Create the file .aws/route53 with the permission 0600.\n")
-	fmt.Printf("\t7. Add the followong lines in the file .aws/route53.\n")
+	fmt.Printf("\t\tregion = {your-aws-region from 1 above}\n\n")
+	fmt.Printf("\t3. Create the file 'route53' in the same directory as in 2 above and set permission to 0600.\n")
+	fmt.Printf("\t4. Add the followong lines in the file 'route53':\n")
 	fmt.Printf("\t\t[%s]\n", profile)
-	fmt.Printf("\t\tzone_name = \"{zone name from 5}\"\n")
-	fmt.Printf("\t\tzone_id = \"{zone name id 5}\"\n")
-	fmt.Printf("\n\n\tNOTE:\n")
+	fmt.Printf("\t\tzone_name = \"{zone name from 1 above}\"\n")
+	fmt.Printf("\t\tzone_id = \"{zone name id 1 above}\"\n")
+	switch {
+	case mode == "server":
+		fmt.Printf("\t\temployee_ports = \"port-1/proto,port-2/proto\"\t\tproto should be either tcp or udp\n")
+		fmt.Printf("\t\t3rd_parties_ports = \"port-1/proto,port-2/proto\"\t\tproto should be either tcp or udp\n")
+		fmt.Printf("\t\t3rd_parties_prefix = \"prefix\"\t\toptional\n")
+	case mode == "admin":
+		fmt.Printf("\t\t3rd_parties_prefix = \"prefix\"\t\toptional\n")
+	case mode == "client":
+	}
+	fmt.Printf("\t\t%s\n", logFileConfigName)
+	fmt.Printf("\n\tNOTE:\n")
 	fmt.Printf("\t\tvalues in the route53 file must be double quoted.\n")
-	fmt.Printf("\t\tthe default profile is %s and it has to match in both files.\n", profile)
+	fmt.Printf("\t\tthe default profile is %s and it has to match in both files: 'credentials' and 'route53'.\n", profile)
 	fmt.Printf("\t\tIf you like to use a different name you will always need to use the --profile flag.\n")
 }
 
 // Function to show the help information
-func HelpServer(profile string) {
+func Help(mode string, profile string) {
+	var actionList string
+	var myUsage string
+	switch mode {
+	case "server":
+		actionList = " cleanup, update, listufw and listdns."
+		myUsage = "[--name=username] [--ip=ip-address] [--action=action] <--profile=profile-name> <--perm> <--debug>"
+	case "client":
+		actionList = " add, del, mod and list."
+		myUsage = "[--action=action] <--profile=profile-name> <--debug>"
+	case "admin":
+		actionList = " add, del, mod, list, listufw and listdns."
+		myUsage = "[--name=username] [--ip=ip-address] [--action=action] <--profile=profile-name> <--perm> <--debug>"
+	}
 	fmt.Printf("%s", MyInfo)
-	fmt.Printf("Usage : %s [-h] %s\n", MyProgname, MyUsageServer)
-	fmt.Printf("\t--action\tvalid actions: update, cleanup listufw or listdns. [1]\n")
-	fmt.Printf("\t--profile\tProfile name (also call section) to use in the configuration files. [2]\n")
-	fmt.Printf("\t--debug\t\tEnable debug, warning lots of debug wil be ddisplayed!\n")
-	fmt.Printf("\n\t[1]\tMandatory flags.\n")
-	fmt.Printf("\t\tupdate: add any IP find in the A-record to the UFW if it does not already exist.\n")
-	fmt.Printf("\t\tcleanup: remove any IP find in the A-record that does not have a TXT-record (indicates a permamentIP).\n")
-	fmt.Printf("\t[2]\tOptional, default to '%s', the name has to match in both configuration files.\n", profile)
-	fmt.Printf("\t\tCall " + MyProgname + " with the --setup flag for more information about the configuration files.\n")
-	fmt.Printf("\n\n\tNOTE: update should be ran via crontab, example every 5-10 mins and\n")
-	fmt.Printf("\t\tcleanup should be ran via crontab once a day, example at 2am.\n")
-}
-
-// Function to show the help information
-func HelpClient(profile string) {
-	fmt.Printf("%s", MyInfo)
-	fmt.Printf("Usage : %s [-h] %s\n", MyProgname, MyUsageClient)
-	fmt.Printf("\t--action\tvalid actions: add, del, mod and list. [1]\n")
-	fmt.Printf("\t--ip\t\tThis should your be your home ip-address [1], http://whatismyip.com\n")
-	fmt.Printf("\t--name\t\tThis must be your username [2], it will show as {your-name} in DNS, you can add a suffix for multiple records. [4]\n")
-	fmt.Printf("\t--perm\t\tMark the record as permament by creating or deleting the assosiate TXT recod [3].\n")
-	fmt.Printf("\t--profile\tProfile name (also call section) to use in the configuration files. [5]\n")
-	fmt.Printf("\t--debug\t\tEnable debug, warning lots of debug wil be ddisplayed!\n")
-	fmt.Printf("\n\t[1]\tMandatory flags.\n")
-	fmt.Printf("\t[2]\tMandatory by add, del and mod actions, optional with the list action, this must be your IAM username.\n")
-	fmt.Printf("\t[3]\tThis will create a TXT record that indicates the record should never be deleted by the firewall.\n")
-	fmt.Printf("\t[4]\tExamples:\n")
-	fmt.Printf("\t\t\tfor temporary location for Luc while in Leuven you will use luc-leuven.\n")
-	fmt.Printf("\t\t\tVictor while working at his parent house, victor-parents.\n")
-	fmt.Printf("\t[5]\tOptional, default to '%s', the name has to match in both configuration files.\n", profile)
-	fmt.Printf("\t\tCall " + MyProgname + " with the --setup flag for more information about the configuration files.\n")
+	fmt.Printf("Usage : %s [-h] %s\n", MyProgname, myUsage)
+	fmt.Printf("\t--action\tvalid actions: %s\n", actionList)
+	fmt.Printf("\t--profile\tProfile name (also call section) to use in the configuration files.\n")
+	fmt.Printf("\t--debug\t\tEnable debug, warning lots of debug wil be displayed!\n")
+	switch {
+	case mode == "client" || mode == "admin":
+		fmt.Printf("\t--ip\t\tThis should your be your home IP-address, use http://whatismyip.com to get your IP.\n")
+		fmt.Printf("\t--name\t\tThis is your AWS-IAM username, you can add a suffix for multiple records.\n")
+		fmt.Printf("\t--perm\t\tCreate ({add}) or delete ({del}) the permanent record.\n")
+	}
+	fmt.Printf("\n\tNotes\n")
+	fmt.Printf("\t\tRequired flags: {action}.\n")
+	switch {
+	case mode == "client":
+		fmt.Printf("\t\tAddtional required flags: {name} and {ip}, if the action is add, del or mod.\n")
+		fmt.Printf("\t\t - the {name} flag is optional if the action is list.\n")
+		fmt.Printf("\t\tMultiple record must start with your your IAM/AWS username. Use useful names, example:\n")
+		fmt.Printf("\t\t\tluc-be : while luc is in Belgium.\n")
+		fmt.Printf("\t\t\ted-parents : while Ed it at his parent place.\n")
+		fmt.Printf("\t\t\tvictor-la: while Victor is in South California.\n")
+		fmt.Printf("\t\tYou can only have one record permanent! Permanent is done via creating a matchting\n")
+		fmt.Printf("\t\t - TXT record with your IAM username!\n")
+		fmt.Printf("\t\tNote that none permanent record will be removed everyday by a scheduled job.\n")
+	case mode == "server":
+		fmt.Printf("\t\tupdate: add any IP found in the A-record to UFW if it does not exist.\n")
+		fmt.Printf("\t\tcleanup: remove the UFW rule(s) and DNS record of found DNS A-record that\n")
+		fmt.Printf("\t\t - does not have a DNS TXT-record. The TXT-record is always the user's IAM username\n")
+	case mode == "server" || mode == "admin":
+		fmt.Printf("\t\tlistufw: list the current UFW rules.\n")
+		fmt.Printf("\t\tlistdns: list the current DNS records, A- and TXT-records only.\n")
+	}
+	fmt.Printf("\t\t{profile} is optional, default to '%s'.\n", profile)
+	fmt.Printf("\t\t - The {profile} name must match in both configuration files.\n")
+	fmt.Printf("\t\tCall " + MyProgname + " with the {setup} flag for more information how to setup the configuration files.\n")
 }

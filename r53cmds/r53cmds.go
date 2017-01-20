@@ -1,4 +1,4 @@
-// Copyright (c) 2015 BadAssOps inc
+// Copyright (c) 2015 - 2017 BadAssOps inc
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -25,13 +25,14 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.3
+// Version		:	0.4
 //
 // Date			:	Jan 17, 2917
 //
 // History	:
 // 	Date:			Author:		Info:
-//	Jan 4, 2017		LIS			First Release
+//  Feb 22, 2015	LIS			Beta release
+//	Jan 4, 2017		LIS			Re-write from Python to Go
 //	Jan 5, 2017		LIS			Added support for --debug
 //	Jan 17, 2017	LIS			Adjustment for Go style
 //
@@ -41,7 +42,6 @@ package r53cmds
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -68,6 +68,7 @@ type r53 struct {
 	ARecords    map[string]string
 	TxtRecords  map[string]string
 	Admin       bool
+	Prefix      string
 }
 
 // Function to quote a given string
@@ -80,18 +81,14 @@ func quoteValues(vals []string) string {
 }
 
 // Function to create a r53 object and initialized
-// string positions
-// 0 profileName
-// 1 zoneName
-// 2 zoneID
-// 3 userName : given from command line, --name flag
+// array elements = profileName, zoneName, zoneID, userName : given from command line, --name flag
 func New(admin bool, debug bool, ttl int, argv ...string) *r53 {
-	mySess, aimUserName := initialze.InitSession(argv[0], argv[1])
+	mySess, iamUserName := initialze.InitSession(argv[0], argv[1])
 	r53S := &r53{
 		session:     mySess,
 		ZoneID:      argv[2],
 		ZoneName:    argv[1],
-		IAMUserName: aimUserName,
+		IAMUserName: iamUserName,
 		UserName:    argv[3],
 		Ttl:         ttl,
 		Debug:       debug,
@@ -135,10 +132,7 @@ func (r53Sess *r53) FindRecords(userName string, mode int) {
 	}
 	var resp *route53.ListResourceRecordSetsOutput
 	resp, err = r53Sess.session.ListResourceRecordSets(&req)
-	if err != nil {
-		log.Printf("-< % >-\n", err)
-		os.Exit(1)
-	}
+	utils.ExitIfError(err)
 	// exact match filter
 	var rrsets []*route53.ResourceRecordSet
 	rrsets = append(rrsets, resp.ResourceRecordSets...)
@@ -194,17 +188,22 @@ func (r53Sess *r53) FindRecords(userName string, mode int) {
 // 0 recordType string
 func (r53Sess *r53) SearchRecord(argv ...string) bool {
 	var err error
-	var recName = r53Sess.UserName + "." + r53Sess.ZoneName + "."
+	var recName string
 	var recType = argv[0]
+	// TXT is always search again IAM username
+	if recType == route53.RRTypeTxt {
+		recName = r53Sess.IAMUserName + "." + r53Sess.ZoneName + "."
+	}
+	if recType == route53.RRTypeA {
+		recName = r53Sess.UserName + "." + r53Sess.ZoneName + "."
+	}
 	req := route53.ListResourceRecordSetsInput{
 		HostedZoneId:    &r53Sess.ZoneID,
 		StartRecordName: &recName,
 	}
 	var resp *route53.ListResourceRecordSetsOutput
 	resp, err = r53Sess.session.ListResourceRecordSets(&req)
-	if err != nil {
-		return false
-	}
+	utils.ExitIfError(err)
 	// the above will find the closest record! so we need to
 	// check for absolute name and we hardcode to
 	// get the first 10 records, the SDK does not provide
@@ -237,7 +236,7 @@ func (r53Sess *r53) SearchRecord(argv ...string) bool {
 func (r53Sess *r53) AddDelModRecord(argv ...string) bool {
 	if r53Sess.Admin == false {
 		if strings.HasPrefix(r53Sess.UserName, r53Sess.IAMUserName) == false {
-			fmt.Printf("-< !! the record name must start with your AIM username (%s) !! >-\n", r53Sess.IAMUserName)
+			utils.StdOutAndLog(fmt.Sprintf("!! the record name must start with your AIM username (%s) !!", r53Sess.IAMUserName))
 			os.Exit(2)
 		}
 	}
@@ -255,8 +254,15 @@ func (r53Sess *r53) AddDelModRecord(argv ...string) bool {
 		return false
 	}
 	if r53Sess.Admin == false {
-		rec_name = r53Sess.UserName + "." + r53Sess.ZoneName + "."
+		// TXT record is always the IAM username
+		if argv[2] == route53.RRTypeTxt {
+			rec_name = r53Sess.IAMUserName + "." + r53Sess.ZoneName + "."
+		}
+		if argv[2] == route53.RRTypeA {
+			rec_name = r53Sess.UserName + "." + r53Sess.ZoneName + "."
+		}
 	} else {
+		// admin has no restriction
 		rec_name = argv[3]
 	}
 	if argv[2] == route53.RRTypeTxt {

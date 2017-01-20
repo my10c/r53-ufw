@@ -1,4 +1,4 @@
-// Copyright (c) BadAssOps inc
+// Copyright (c) 2015 - 2017 BadAssOps inc
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -25,15 +25,16 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.2
+// Version		:	0.3
 //
 // Date			:	Jan 5, 2017
 //
 // History	:
 // 	Date:			Author:		Info:
-//	Jan 3, 2017		LIS			First Release
+//	Feb 20, 2015	LIS			Beta release
+//	Jan 3, 2017		LIS			Re-write from Python to go
 //	Jan 5, 2017		LIS			Adding suport for --profile and --debug
-//
+// TODO: ExitIfError, there is a possiblity that log has not been set yet!
 
 package utils
 
@@ -49,9 +50,16 @@ import (
 func ExitIfError(err error) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error: "+fmt.Sprint(err))
-		log.Printf("-< % >-\n", err)
+		log.Printf("-< %s >-\n", fmt.Sprint(err))
 		os.Exit(1)
 	}
+}
+
+// Function to print teh given message to stdout and log file
+func StdOutAndLog(message string) {
+	fmt.Printf("-< %s >-\n", message)
+	log.Printf("-< %s >-\n", message)
+	return
 }
 
 // Function to check if given IP is a correct ip and not in the RFC1918 range
@@ -73,19 +81,50 @@ func CheckRfc1918Ip(ip string) (bool, string) {
 }
 
 // function to print action result
-// Strings position
-// 0. action
-// 2. name
-// 3. value
-// 4. type
+//  array elements = action, name, value, type
 func PrintActionResult(argv ...string) {
-	fmt.Printf("-< Action  : %s succeed >-\n", argv[0])
-	fmt.Printf("-< Name    : %s >-\n", argv[1])
-	fmt.Printf("-< %s      : %s >-\n", argv[3], argv[2])
+	StdOutAndLog(fmt.Sprintf("Action  : %s succeed", argv[0]))
+	StdOutAndLog(fmt.Sprintf("Name    : %s", argv[1]))
+	StdOutAndLog(fmt.Sprintf("%s      : %s", argv[3], argv[2]))
 	return
 }
 
 // Function to create a array of the argument to be passed to a command exec
 func MakeCmdArgs(args ...string) []string {
 	return strings.Fields(strings.Join(args, " "))
+}
+
+// Function to create string array from the given strings
+func MakeReturnValues(args ...string) []string {
+	var returnValues []string
+	for idx := 0; idx < len(args); idx++ {
+		returnValues = append(returnValues, args[idx])
+	}
+	return returnValues
+}
+
+// Function to check if the given port configuration is correct : #/proto
+func CheckPortsConfig(configName string, portsConfig []string) bool {
+	if portsConfig[0] == "" {
+		StdOutAndLog(fmt.Sprintf("The configuration %s is missing.", configName))
+		return false
+	}
+	for idx := range portsConfig {
+		port_proto := strings.Split(portsConfig[idx], "/")
+		if len(port_proto) != 2 {
+			StdOutAndLog(fmt.Sprintf("port does not have a proto: %s", portsConfig[idx]))
+			return false
+		} else if port_proto[1] == "" {
+			StdOutAndLog(fmt.Sprintf("port has an empty proto: %s", portsConfig[idx]))
+			return false
+		}
+		switch port_proto[1] {
+		case "udp":
+		case "tcp":
+		default:
+			StdOutAndLog(fmt.Sprintf("proto %s not supported", port_proto[1]))
+			return false
+		}
+	}
+	return true
 }

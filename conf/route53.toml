@@ -1,3 +1,9 @@
 [r53-ufw]
-zone_name = "r53u-fw.prv"
+zone_name = "r53u-ufw.prv"
 zone_id = "ZZZ"
+employee_ports = "22/tcp"
+3rd_parties_ports = "666/tcp"
+3rd_parties_prefix = "ext"
+client_log_file = "/tmp/r53_ufw_client.log"
+server_log_file = "/var/log/r53_ufw_server.log"
+admin_log_file = "/var/log/r53_ufw_admin.log"

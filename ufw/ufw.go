@@ -1,4 +1,4 @@
-// Copyright (c) BadAssOps inc
+// Copyright (c) 2015 - 2017 BadAssOps inc
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -25,13 +25,14 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.1
+// Version		:	0.2
 //
 // Date			:	Jan 9, 2017
 //
 // History	:
 // 	Date:			Author:		Info:
-//	Jan 9, 2017		LIS			First Release
+//	Feb 25, 2015	LIS			Beta release
+//	Jan 9, 2017		LIS			Re-write from Python to Go
 //
 // TODO: create better rule for delete and search, example :
 // current we need to mtach the rule as ufw shows it
@@ -79,16 +80,6 @@ type ufwExec struct {
 }
 
 type ufwRule string
-
-// For future development
-type UFW interface {
-	getStatus() bool
-	updateRules() bool
-	showRules(lock int)
-	searchRules(rule string) (int, bool)
-	deleteRule(argv ...string) bool
-	addRule(argv ...string) bool
-}
 
 // Function to create a string witn no double white spaces and no ['s nor ]'s
 func (ufwRule) ufwRuleStr(rule string) string {
@@ -179,6 +170,8 @@ func (ufwExec *ufwExec) updateRules(lock int) bool {
 	}
 	output, err := exec.Command(cmdUFW, args...).Output()
 	if err != nil {
+		errInfo := err.Error()
+		utils.StdOutAndLog(errInfo)
 		return false
 	}
 	ufwExec.rules = nil
@@ -224,22 +217,22 @@ func (ufwExec *ufwExec) searchRules(rule string) (int, bool) {
 // this is a very simple, see TODO above
 func (ufwExec *ufwExec) DeleteRule(argv ...string) bool {
 	rule := strings.Join(utils.MakeCmdArgs(argv...), " ")
-	rule_int, hit := ufwExec.searchRules(rule)
-	if hit == false {
-		fmt.Printf("-< rule does not exist: %s. >-\n", rule)
-		return false
-	}
-	rule_str := strconv.Itoa(rule_int)
-	delete_args := utils.MakeCmdArgs(optForce, cmdDelete, rule_str)
+	// rule_int, hit := ufwExec.searchRules(rule)
+	// if hit == false {
+	// 	return false
+	// }
+	//rule_str := strconv.Itoa(rule_int)
+	//delete_args := utils.MakeCmdArgs(optForce, cmdDelete, rule_str)
+	delete_args := utils.MakeCmdArgs(optForce, cmdDelete, rule)
 	ufwExec.mu.Lock()
 	defer ufwExec.mu.Unlock()
 	if err := exec.Command(cmdUFW, delete_args...).Run(); err != nil {
-		fmt.Printf("-< failed deleting the rule: %s. >-\n", rule)
+		errInfo := err.Error()
+		utils.StdOutAndLog(errInfo)
 		return false
 	}
 	result := ufwExec.updateRules(0)
 	if result == false {
-		fmt.Printf("-< failed update the rules.\n")
 		return false
 	}
 	return true
@@ -254,19 +247,16 @@ func (ufwExec *ufwExec) AddRule(argv ...string) bool {
 	defer ufwExec.mu.Unlock()
 	output, err := exec.Command(cmdUFW, add_args...).Output()
 	if err != nil {
-		fmt.Printf("-< failed adding the rule: %s. >-\n", add_args)
-		fmt.Println(err)
-		fmt.Printf("--> %s <--\n", output)
+		errInfo := err.Error()
+		utils.StdOutAndLog(errInfo)
 		return false
 	}
 	// UFW will return 0 if the rule exist! so we need to test again stdout: 'Skipping adding existing rule'
 	if strings.Contains(string(output), "Skipping adding existing rule") {
-		fmt.Printf("-< rule already exist: %s. >-\n", rule)
 		return false
 	}
 	result := ufwExec.updateRules(0)
 	if result == false {
-		fmt.Printf("-< failed update the rules.\n")
 		return false
 	}
 	return true

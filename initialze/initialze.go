@@ -1,4 +1,4 @@
-// Copyright (c) 2015 BadAssOps inc
+// Copyright (c) 2015 - 2017 BadAssOps inc
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -25,13 +25,14 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.2
+// Version		:	0.3
 //
 // Date			:	Jan 5, 2017
 //
 // History	:
 // 	Date:			Author:		Info:
-//	Jan 3, 2017		LIS			First Release
+//	Feb 26, 2015	LIS			Beta release
+//	Jan 3, 2017		LIS			Re-write from Python to Go
 //	Jan 5, 2017		LIS			Added support for --profile and --debug
 //
 
@@ -43,6 +44,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/my10c/r53-ufw/help"
 	"github.com/my10c/r53-ufw/utils"
@@ -54,6 +56,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/route53"
+
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type StringFlag struct {
@@ -62,12 +66,11 @@ type StringFlag struct {
 }
 
 var (
-	MyIp      StringFlag
-	MyName    StringFlag
-	MyAction  StringFlag
-	MyPerm    bool = false
-	MyProfile StringFlag
-	MyDebug   bool = false
+	myIP          StringFlag
+	myName        StringFlag
+	myAction      StringFlag
+	myProfile     StringFlag
+	myTXTRequired bool = false
 )
 
 // Function for the StringFlag struct, set the values
@@ -83,14 +86,8 @@ func (sf *StringFlag) String() string {
 }
 
 // Function to get the value from the configuration file
-// there are 2 configuration we need, zone_name and zone_id for client
-// and 2 addtional for server, employee_ports and 3rd_parties_ports
-// string positions
-// 0 profile
-// 1. full qualified config file name
 // returns
-// first array is zone info (name then id)
-// second array is port info (employees then 3rd parties)
+// array elements =  zone_name, zone_id, employee_ports, 3rd_parties_ports, 3rd_parties_prefix, client_log, server_log, admin_log
 func GetConfig(debug bool, argv ...string) []string {
 	viper.SetConfigFile(argv[1])
 	viper.SetConfigType("toml")
@@ -101,23 +98,29 @@ func GetConfig(debug bool, argv ...string) []string {
 		bufio.NewReader(os.Stdin).ReadBytes('\n')
 		fmt.Printf("\n--< ** END DEBUG INFO >--\n")
 	}
-	// viper.SetConfigName(argv[1])
-	// viper.AddConfigPath(argv[2])
 	err := viper.ReadInConfig()
-	if err != nil {
-		fmt.Printf("Bailed here.....\n")
-		utils.ExitIfError(err)
-	}
-	var returnValues []string
+	utils.ExitIfError(err)
+	var third_parties_prefix string
+	var client_log string
+	var server_log string
+	var admin_log string
 	zone_name := viper.GetString(argv[0] + ".zone_name")
 	zone_id := viper.GetString(argv[0] + ".zone_id")
 	emmployee_ports := viper.GetString(argv[0] + ".employee_ports")
 	third_parties_ports := viper.GetString(argv[0] + ".3rd_parties_ports")
-	returnValues = append(returnValues, zone_name)
-	returnValues = append(returnValues, zone_id)
-	returnValues = append(returnValues, emmployee_ports)
-	returnValues = append(returnValues, third_parties_ports)
-	return returnValues
+	if viper.IsSet(argv[0] + ".3rd_parties_prefix") {
+		third_parties_prefix = viper.GetString(argv[0] + ".3rd_parties_prefix")
+	}
+	if viper.IsSet(argv[0] + ".client_log") {
+		client_log = viper.GetString(argv[0] + ".client_log")
+	}
+	if viper.IsSet(argv[0] + ".server_log") {
+		server_log = viper.GetString(argv[0] + ".server_log")
+	}
+	if viper.IsSet(argv[0] + ".admin_log") {
+		admin_log = viper.GetString(argv[0] + ".admin_log")
+	}
+	return utils.MakeReturnValues(zone_name, zone_id, emmployee_ports, third_parties_ports, third_parties_prefix, client_log, server_log, admin_log)
 }
 
 // Function to get the AWS credential based on the given profile
@@ -133,9 +136,7 @@ func getIamUsername(sess *session.Session, profile string) string {
 	iam_sess := iam.New(sess, getAwsCredentials(profile))
 	params := &iam.GetUserInput{}
 	resp, err := iam_sess.GetUser(params)
-	if err != nil {
-		utils.ExitIfError(err)
-	}
+	utils.ExitIfError(err)
 	return *resp.User.UserName
 }
 
@@ -155,148 +156,135 @@ func initR53Session(sess *session.Session, profile string, zone string) *route53
 func InitSession(profile string, zone string) (*route53.Route53, string) {
 	var sess *session.Session
 	sess = session.New()
+	if sess == nil {
+		utils.StdOutAndLog("Unable to create a new AWS session, aborting")
+		os.Exit(1)
+	}
 	return initR53Session(sess, profile, zone), getIamUsername(sess, profile)
 }
 
 // Function to initialize logging
-func InitLog(logfile string) *os.File {
-	fp, err := os.OpenFile(logfile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
-	if err != nil {
-		panic(err)
-	}
+func InitLog(logfile string) {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	log.SetOutput(fp)
-	return fp
+	log.SetOutput(&lumberjack.Logger{
+		Filename:   logfile,
+		MaxSize:    128, // megabytes
+		MaxBackups: 3,
+		MaxAge:     10, //days
+	})
 }
 
-// Function to initialize the required flags and make sure the correct value were given
-// returns positions
-// 0 MyAction.value
-// 1 MyName.value
-func InitArgsServer(profile string) (string, string, bool) {
+// Function to initialize the required flags and make sure the correct value weres given
+// returns
+// array elements =  Action, profilename, debug if not server also: Txt Record required, myName.value and myIP.value
+func InitArgs(mode string, profile string) []string {
 	var errored int = 0
+	var actionList string
+	var valFiller string
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", help.MyProgname)
 		flag.PrintDefaults()
-		// Help(profile)
 	}
-	version := flag.Bool("version", false, "prints current version and exit.")
-	setup := flag.Bool("setup", false, "show how to setup the AWS credentials and then exit.")
-	MyDebug := flag.Bool("debug", false, "Enable debug.")
-	flag.Var(&MyAction, "action", "Action choice update, cleanup, listufw, listdns.")
-	flag.Var(&MyProfile, "profile", "Profile to use, default to "+profile+".")
-	flag.Parse()
-	if *version {
-		fmt.Printf("%s\n", help.MyVersion)
-		os.Exit(0)
-	}
-	if *setup {
-		help.SetupHelpServer(profile)
-		os.Exit(0)
-	}
-	if !MyProfile.set {
-		MyProfile.Set(profile)
-	}
-	if !MyAction.set {
-		errored = 1
-		fmt.Printf("\tMandatory --action flag omitted.\n")
-		log.Printf("Mandatory --action flag omitted")
+	if mode == "server" {
+		actionList = " cleanup, update, listufw and listdns."
 	} else {
-		switch MyAction.value {
-		case "update":
-			break
-		case "cleanup":
-			break
-		case "listufw":
-			break
-		case "listdns":
-			break
-		default:
-			fmt.Printf("%s is not valid command.\n", MyAction.value)
-			log.Printf(MyAction.value, " is not valid command.")
-			errored = 1
-		}
-	}
-	if errored == 1 {
-		help.HelpServer(profile)
-		os.Exit(2)
-	}
-	return MyAction.value, MyProfile.value, *MyDebug
-}
-
-// Function to initialize the required flags and make sure the correct value were given
-// returns positions
-// 0 MyPerm
-// 1 MyAction.value
-// 2 MyName.value
-// 3 MyIp.value
-func InitArgsClient(profile string) (bool, string, string, string, string, bool) {
-	var errored int = 0
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s:\n", help.MyProgname)
-		flag.PrintDefaults()
-		// Help(profile)
+		actionList = " add, del, mod and list."
 	}
 	version := flag.Bool("version", false, "prints current version and exit.")
 	setup := flag.Bool("setup", false, "show how to setup your AWS credentials and then exit.")
-	MyDebug := flag.Bool("debug", false, "Enable debug.")
-	MyPerm := flag.Bool("perm", false, "mark record as permanent.")
-	flag.Var(&MyAction, "action", "Action choice of add, del, mod and list.")
-	flag.Var(&MyName, "name", "This must be your username, same as the (yours) dns record, you can add a suffix for multiple record.")
-	flag.Var(&MyIp, "ip", "IP address to assign to yours dns record, this must be your 'home' public IP.")
-	flag.Var(&MyProfile, "profile", "Profile to use, default to "+profile+".")
-	flag.Parse()
+	// flags applies to all mode
+	flag.Var(&myAction, "action", "Action choices: "+actionList)
+	flag.Var(&myProfile, "profile", "Profile to use, default to "+profile+".")
+	myDebug := flag.Bool("debug", false, "Enable debug.")
+
+	// flags for client and admin only
+	if mode == "client" || mode == "admin" {
+		myPerm := flag.Bool("perm", false, "Mark record as permanent.")
+		flag.Var(&myName, "name", "This must be your IAM username, add a suffix for multiple record.")
+		flag.Var(&myIP, "ip", "The IP address to assign to yours dns record, this must be a public IP.")
+		flag.Parse()
+		if *myPerm {
+			myTXTRequired = true
+		}
+	} else {
+		flag.Parse()
+	}
 	if *version {
 		fmt.Printf("%s\n", help.MyVersion)
 		os.Exit(0)
 	}
 	if *setup {
-		help.SetupHelpClient(profile)
+		help.SetupHelp(mode, profile)
 		os.Exit(0)
 	}
-	if !MyProfile.set {
-		MyProfile.Set(profile)
+	if !myProfile.set {
+		myProfile.Set(profile)
 	}
-	if !MyAction.set {
+	if !myAction.set {
 		errored = 1
-		fmt.Printf("\tMandatory --action flag omitted.\n")
-		log.Printf("Mandatory --action flag omitted")
-	} else {
-		switch MyAction.value {
-		case "add":
-			break
-		case "del":
-			break
-		case "mod":
-			break
-		case "list":
-			return *MyPerm, MyAction.value, MyName.value, MyIp.value, MyProfile.value, *MyDebug
+	}
+	if mode == "server" && errored == 0 {
+		switch myAction.value {
+		case "listufw":
+		case "listdns":
+		case "cleanup":
+		case "update":
 		default:
-			fmt.Printf("%s is not valid command.\n", MyAction.value)
-			log.Printf(MyAction.value, " is not valid command.")
+			fmt.Printf("%s is not valid command.\n", myAction.value)
+			help.Help(mode, profile)
+			os.Exit(2)
+		}
+		return utils.MakeReturnValues(myAction.value, myProfile.value, strconv.FormatBool(*myDebug))
+	}
+	if mode == "admin" && errored == 0 {
+		var admin_break int = 0
+		switch myAction.value {
+		case "listufw":
+			admin_break = 1
+		case "listdns":
+			admin_break = 1
+		case "add":
+		case "del":
+		case "mod":
+		case "list":
+		default:
+			fmt.Printf("%s is not valid command.\n", myAction.value)
+			errored = 1
+		}
+		if errored == 0 && admin_break == 1 {
+			return utils.MakeReturnValues(myAction.value, myProfile.value, strconv.FormatBool(*myDebug), valFiller, valFiller)
+		}
+	}
+	if mode == "client" && errored == 0 {
+		switch myAction.value {
+		case "add":
+		case "del":
+		case "mod":
+		case "list":
+		default:
+			fmt.Printf("%s is not valid command.\n", myAction.value)
 			errored = 1
 		}
 	}
-	if !MyName.set {
-		errored = 1
-		fmt.Printf("\tMandatory --name flag omitted.\n")
-		log.Printf("Mandatory --name flag omitted")
-	}
-	if !MyIp.set {
-		errored = 1
-		fmt.Printf("\tMandatory --ip flag omitted.\n")
-		log.Printf("Mandatory --ip flag omitted")
+	if myAction.value != "list" {
+		if !myName.set {
+			errored = 1
+		}
+		if !myIP.set {
+			errored = 1
+		} else {
+			result, info := utils.CheckRfc1918Ip(myIP.value)
+			if result == false {
+				fmt.Printf("%s", help.MyInfo)
+				fmt.Printf("\t-< %s >-\n", info)
+				log.Printf(info)
+				os.Exit(2)
+			}
+		}
 	}
 	if errored == 1 {
-		help.HelpClient(profile)
+		help.Help(mode, profile)
 		os.Exit(2)
 	}
-	result, info := utils.CheckRfc1918Ip(MyIp.value)
-	if result == false {
-		fmt.Printf("%s", help.MyInfo)
-		fmt.Printf("\t-< %s >-\n", info)
-		log.Printf(info)
-		os.Exit(2)
-	}
-	return *MyPerm, MyAction.value, MyName.value, MyIp.value, MyProfile.value, *MyDebug
+	return utils.MakeReturnValues(myAction.value, myProfile.value, strconv.FormatBool(*myDebug), strconv.FormatBool(myTXTRequired), myName.value, myIP.value)
 }
