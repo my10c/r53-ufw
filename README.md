@@ -139,7 +139,7 @@ Setup the aws credentials file:
 
 
 #### the r53-ufw-server
-Do not that it must be run as root and the configuration files are hardcode to be located under
+Do note that it must be run as root and the configuration files are hardcode to be located under
 ```
 /etc/aws
 ```
@@ -193,6 +193,62 @@ Setup the aws credentials file:
 #### the r53-ufw-admin
 The admin app is mean to create/delete/modify DNS records without the restriction that the client has, which
 is that the record has to match the user's AWS-IAM username. It meant to administrate 3rd party access.
-Do not that it must be run as root!
+In Short it combines both the server as welll the client functionality but without restriction on the
+name of the DNS record.
 
-more to come : the admin app
+Do note that it must be run as root and the configuration files are hardcode to be located under,
+so it requires the same configuration as the server app.
+```
+/etc/aws
+```
+ 
+```
+Usage of r53-ufw-admin:
+  -action value
+    	Action choices: add, del, mod, list, cleanup, update, listufw and listdns.
+  -debug
+    	Enable debug.
+  -ip value
+    	The public IP to associate to the record to be created.
+  -name value
+    	This name of the record to be created.
+  -perm
+    	Mark record as permanent.
+  -profile value
+    	Profile to use, default to r53-ufw.
+  -setup
+    	show how to setup your AWS credentials and then exit.
+  -version
+    	prints current version and exit.
+```
+
+And the setup info
+```
+r53-ufw-admin 0.3
+Copyright 2015 - 2017 ©BadAssOps inc
+LicenseBSD, http://www.freebsd.org/copyright/freebsd-license.html ♥
+Written by Luc Suryo <luc@badassops.com>
+Usage : r53-ufw-admin [-h] [--name=username] [--ip=ip-address] [--action=action] <--profile=profile-name> <--perm> <--debug>
+	--action	valid actions: add, del, mod, list,cleanup, update, listufw and listdns.
+	--profile	Profile name (also call section) to use in the configuration files.
+	--debug		Enable debug, warning lots of debug wil be displayed!
+	--ip		The IP-address to be used for the A-record.
+	--name		The name to be used for the A-record.
+	--perm		Create ({add}) or delete ({del}) the permanent record associate with the given name.
+
+	Notes
+		Required flags: {action}.
+		Addtional required flags: {name} and {ip}, if the action is add, del or mod.
+		 - the {name} flag is optional if the action is list.
+		Multiple record must start with your your AWS-IAM username[1]. Use useful names, example:
+			luc-be : while luc is in Belgium.
+			ed-parents : while Ed it at his parent place.
+			victor-la: while Victor is in South California.
+		You can only have one record permanent! Permanent is done via creating a matchting
+		 - TXT record with your IAM username![1]
+		Note that none permanent record will be removed everyday by a scheduled job.
+		{profile} is optional, default to 'r53-ufw'.
+		 - The {profile} name must match in both configuration files.
+		[1] The admin tool does not required to use your AWS-IAM username.
+		Call r53-ufw-admin with the {setup} flag for more information how to setup the configuration files.
+```
