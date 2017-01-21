@@ -62,7 +62,7 @@ import (
 var (
 	logfile       string = "/var/log/r53-ufw-server.log"
 	configName    string = "/route53"
-	credName      string = "/aws"
+	credName      string = "/credentials"
 	configAWSPath string = "/etc/aws"
 	profileName   string = "r53-ufw"
 	r53TtlRec            = 300

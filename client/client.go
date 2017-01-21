@@ -59,7 +59,7 @@ import (
 var (
 	logfile       string = "/tmp/r53-ufw-client.log" // default
 	configName    string = "/route53"                // hardcoded
-	credName      string = "/aws"
+	credName      string = "/credentials"
 	configAWSPath string = "/.aws"   // hardcoded
 	profileName   string = "r53-ufw" // default
 	r53TtlRec            = 300       // hardcoded
