@@ -82,8 +82,8 @@ func quoteValues(vals []string) string {
 
 // Function to create a r53 object and initialized
 // array elements = profileName, zoneName, zoneID, userName : given from command line, --name flag
-func New(admin bool, debug bool, ttl int, argv ...string) *r53 {
-	mySess, iamUserName := initialze.InitSession(argv[0], argv[1])
+func New(admin bool, debug bool, credFile string, ttl int, argv ...string) *r53 {
+	mySess, iamUserName := initialze.InitSession(credFile, argv[0], argv[1])
 	r53S := &r53{
 		session:     mySess,
 		ZoneID:      argv[2],

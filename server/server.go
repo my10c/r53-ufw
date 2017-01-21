@@ -97,7 +97,7 @@ func main() {
 	thirdPartiesPorts := strings.Split(string(configInfos[3]), ",")
 	thirdPartiesPrefix := string(configInfos[4])
 	myLog := string(configInfos[5])
-	mySess := r53cmds.New(admin, debug, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
+	mySess := r53cmds.New(admin, debug, configFile, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
 	if myLog != "" {
 		initialze.InitLog(myLog)
 	} else {

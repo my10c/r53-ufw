@@ -95,7 +95,7 @@ func main() {
 	} else {
 		initialze.InitLog(logfile)
 	}
-	mySess := r53cmds.New(admin, debug, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
+	mySess := r53cmds.New(admin, debug, configFile, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
 
 	if clientAction == "list" {
 		mySess.FindRecords(r53RecName, 0)

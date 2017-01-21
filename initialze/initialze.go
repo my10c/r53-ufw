@@ -124,16 +124,16 @@ func GetConfig(debug bool, argv ...string) []string {
 }
 
 // Function to get the AWS credential based on the given profile
-func getAwsCredentials(profile string) *aws.Config {
+func getAwsCredentials(credFile string, profile string) *aws.Config {
 	config := aws.Config{}
-	config.Credentials = credentials.NewSharedCredentials("", profile)
+	config.Credentials = credentials.NewSharedCredentials(credFile, profile)
 	config.MaxRetries = aws.Int(100)
 	return &config
 }
 
 // Function to get the IAM user name based on the credentials
-func getIamUsername(sess *session.Session, profile string) string {
-	iam_sess := iam.New(sess, getAwsCredentials(profile))
+func getIamUsername(credFile string, sess *session.Session, profile string) string {
+	iam_sess := iam.New(sess, getAwsCredentials(credFile, profile))
 	params := &iam.GetUserInput{}
 	resp, err := iam_sess.GetUser(params)
 	utils.ExitIfError(err)
@@ -141,8 +141,8 @@ func getIamUsername(sess *session.Session, profile string) string {
 }
 
 // Function to initialize the AWS Route53 session
-func initR53Session(sess *session.Session, profile string, zone string) *route53.Route53 {
-	r53 := route53.New(sess, getAwsCredentials(profile))
+func initR53Session(credFile string, sess *session.Session, profile string, zone string) *route53.Route53 {
+	r53 := route53.New(sess, getAwsCredentials(credFile, profile))
 	// Check if we can use the session.
 	req := route53.ListHostedZonesByNameInput{
 		DNSName: &zone,
@@ -153,14 +153,14 @@ func initR53Session(sess *session.Session, profile string, zone string) *route53
 }
 
 // Function to initialize the AWS session and the IAM user
-func InitSession(profile string, zone string) (*route53.Route53, string) {
+func InitSession(credFile string, profile string, zone string) (*route53.Route53, string) {
 	var sess *session.Session
 	sess = session.New()
 	if sess == nil {
 		utils.StdOutAndLog("Unable to create a new AWS session, aborting")
 		os.Exit(1)
 	}
-	return initR53Session(sess, profile, zone), getIamUsername(sess, profile)
+	return initR53Session(credFile, sess, profile, zone), getIamUsername(credFile, sess, profile)
 }
 
 // Function to initialize logging
