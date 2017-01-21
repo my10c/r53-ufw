@@ -59,9 +59,10 @@ import (
 var (
 	logfile       string = "/tmp/r53-ufw-client.log" // default
 	configName    string = "/route53"                // hardcoded
-	configAWSPath string = "/.aws"                   // hardcoded
-	profileName   string = "r53-ufw"                 // default
-	r53TtlRec            = 300                       // hardcoded
+	credName      string = "/aws"
+	configAWSPath string = "/.aws"   // hardcoded
+	profileName   string = "r53-ufw" // default
+	r53TtlRec            = 300       // hardcoded
 	r53RecType    string = route53.RRTypeA
 	debug         bool   = false
 	admin         bool   = false
@@ -75,6 +76,7 @@ func main() {
 
 	// initialization
 	configFile := os.Getenv("HOME") + configAWSPath + configName
+	credFile := os.Getenv("HOME") + configAWSPath + credName
 	initValue := initialze.InitArgs("client", profileName)
 	if initValue == nil {
 		fmt.Printf("-< Failed initialized the argument! Aborted >-\n")
@@ -95,7 +97,7 @@ func main() {
 	} else {
 		initialze.InitLog(logfile)
 	}
-	mySess := r53cmds.New(admin, debug, configFile, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
+	mySess := r53cmds.New(admin, debug, credFile, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
 
 	if clientAction == "list" {
 		mySess.FindRecords(r53RecName, 0)

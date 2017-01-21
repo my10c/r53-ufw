@@ -62,6 +62,7 @@ import (
 var (
 	logfile       string = "/var/log/r53-ufw-server.log"
 	configName    string = "/route53"
+	credName      string = "/aws"
 	configAWSPath string = "/etc/aws"
 	profileName   string = "r53-ufw"
 	r53TtlRec            = 300
@@ -82,6 +83,7 @@ func main() {
 
 	// initialization
 	configFile := configAWSPath + configName
+	credFile := configAWSPath + credName
 	initValue := initialze.InitArgs("server", profileName)
 	if initValue == nil {
 		fmt.Printf("-< Failed initialized the argument! Aborted >-\n")
@@ -97,7 +99,7 @@ func main() {
 	thirdPartiesPorts := strings.Split(string(configInfos[3]), ",")
 	thirdPartiesPrefix := string(configInfos[4])
 	myLog := string(configInfos[5])
-	mySess := r53cmds.New(admin, debug, configFile, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
+	mySess := r53cmds.New(admin, debug, credFile, r53TtlRec, profileName, zoneName, zoneID, r53RecName)
 	if myLog != "" {
 		initialze.InitLog(myLog)
 	} else {
