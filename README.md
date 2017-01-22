@@ -6,8 +6,8 @@
 Imagine you have to manage access to servers for engineers that works from home
 (and they do not have a static IP, it can change anytime) or they are temporary at
 a remote location and make things more fun they are in a different
-timezone too. Like a good secure setup the servers are protected by some firewall (UFW),
-so now you have to wake-up, login to the servers (hopely there are not to many?),
+timezone too. Like a good secure setup, the servers are protected by some firewall (in our we use UFW).
+So the engineer calls you, try wake-up fast, login to the servers (hopely there are not to many?),
 make adjustment to the firewall rule. Go back to bed and remember to cleanup these rules... fun right?
 
 ### A solution
@@ -28,7 +28,7 @@ Server ----> read  ---> AWS Route53 --> private zone
 
 #### Client side
 With a single binary, written in Go, they can add records to a private AWS Route53 zone,
-to make it secure the record they can manage will always starts with their AWS IAM username,
+to make it secure the record they can manage will always starts with their AWS-IAM username,
 and they can only create/delete/modify one TXT-record and but are allow to create/delete/modify
 multiple A records.
 
@@ -41,8 +41,8 @@ call the client and the record is add:
 momo-brussel IN A 77.77.77.77
 ```
 
-back home Momo create a record and mark the IP permanent, also using http://whatismyip.com, he
-creates the record and mark it permanent, and the following records are then created:
+Once home, Momo create a record and mark the IP permanent, also using http://whatismyip.com, 
+and the following records are then created:
 
 ```
 momo  IN  A 66.66.66.66
@@ -55,34 +55,42 @@ r53-ufw-client -action add -name momo-brussel -ip 77.77.77.77
 r53-ufw-client -action add -name momo -ip 66.66.66.66 -perm
 ```
 
-Simple right? Once these record has been create, aboout 5 mins later (depends on your crontab) these IPs has been added to
-the firewall rule. Then the next day the record momo-brussel is automatically remove and so its firewall rule, all automated.
-If Momo needed the access longer, he then just re-create the record. Mind you in some places the IP address that
-you get from the Internet provider can change everyday!
+Simple right? Once these record has been create, aboout 5 mins later (depends on your crontab) these IPs then
+gets added to the firewall rule. Then the next day the record momo-brussel is automatically remove and so its
+firewall rule, since it does not have a respondent TXT-record, all automated.
+
+If Momo needed the access longer while in Brussel, he then just re-create the record. Mind you in some
+places the IP address that you get from the Internet provider can change everyday!
+Using the list option Momo can check what records in the zone with:
+
+```
+r53-ufw-client -action list -name momo
+```
+Note: the '-name' is optional, there is no need to hide all records from the engineers, we trust them, right?
 
 
 ### Server side
-Lets run a crontabs  on the server that every 5 mins:
-Tasks 1 : adjust the firewall rules, add new rule
+Lets run a crontabs  on the server that every 5 mins, adjust the UFW rules; add new rule(s).
 
 ```
-1. pulls all A-records and TXT-records.
+1. Pulls all A-records and TXT-records.
 2. First time all A-record IPs will be added to the firewall rule
 3. By the next run its does the same thing, UFW takes care to ignore already added rules.
 ```
 
-Task 2 : remove all none marked permanent rules
+And an other crontab that removes all UFW rules that does not have a TXT-record.
 ```
-1. pulls all A-records and TXT-records.
-2. if a A-record does not have a TXT-record then marked that for deletion
-3. based on the port configuration remve all firewall rule for the IP in the A-record with the configure port
-4. delete the A-record
+1. Pulls all A-records and TXT-records.
+2. If a A-record does not have a TXT-record then marked that for deletion
+3. Based on the port configuration remvoe all UFW rules using the IP in the A-record.
+4. Delete the A-record
 ```
 
 Note:
-to make things more secure, you must configure the port and protocol of that port (UDP or TCP) that the rule
-applies too. And since we might need to support 3rd party engineer, we have a separate port configs. Mind you
-this is not a complex application, it mean to make your live easy. It can also be improved, welcome!
+to make things more secure, you must configure the port and protocol of that port (UDP or TCP).
+And since we might need to support 3rd party engineer, we have a separate port configs for them. Mind you
+this is not a complex application, it mean to make your live easy. It can also be improved, any suggestion,
+feature request are welcome!
 
 ## The apps
 
@@ -193,7 +201,7 @@ Setup the aws credentials file:
 #### the r53-ufw-admin
 The admin app is mean to create/delete/modify DNS records without the restriction that the client has, which
 is that the record has to match the user's AWS-IAM username. It meant to administrate 3rd party access.
-In Short it combines both the server as welll the client functionality but without restriction on the
+In short it combines both the server as welll the client functionality but without restriction on the
 name of the DNS record.
 
 Do note that it must be run as root and the configuration files are hardcode to be located under,
@@ -252,3 +260,7 @@ Usage : r53-ufw-admin [-h] [--name=username] [--ip=ip-address] [--action=action]
 		[1] The admin tool does not required to use your AWS-IAM username.
 		Call r53-ufw-admin with the {setup} flag for more information how to setup the configuration files.
 ```
+
+
+Enjoy
+- Momo
