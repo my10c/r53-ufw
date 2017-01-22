@@ -164,7 +164,7 @@ func main() {
 				for idx := range employeePorts {
 					port_proto := strings.Split(employeePorts[idx], "/")
 					rule := fmt.Sprintf("delete %s %s to any port %s proto %s", ufw_allow_from, uValue, strings.TrimSpace(port_proto[0]), strings.TrimSpace(port_proto[1]))
-					if ufw.AddRule(rule); false {
+					if ufw.DeleteRule(rule); false {
 						utils.StdOutAndLog(fmt.Sprintf("Adding the employee rule %s failed.", rule))
 					}
 				}
