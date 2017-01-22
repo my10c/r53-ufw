@@ -97,6 +97,7 @@ func main() {
 	profileName := initValue[1]
 	debug, _ := strconv.ParseBool(initValue[2])
 	switch adminAction {
+	case "reset":
 	case "listufw":
 	case "listdns":
 	case "update":
@@ -140,6 +141,7 @@ func main() {
 	}
 
 	switch adminAction {
+	case "reset":
 	case "update":
 	case "cleanup":
 	default:
@@ -256,6 +258,30 @@ func main() {
 			if resultTxtRec == false {
 				utils.StdOutAndLog("The TXT-record does not exist, check with action list to see value(s).")
 				os.Exit(1)
+			}
+		}
+	case "reset":
+		ufw := ufw.New()
+		for aKey, aValue := range mySess.ARecords {
+			workList[aKey] = aValue
+		}
+		for _, uValue := range workList {
+			if strings.Contains(uValue, "3rd-party") {
+				for idx := range thirdPartiesPorts {
+					port_proto := strings.Split(thirdPartiesPorts[idx], "/")
+					rule := fmt.Sprintf("delete %s %s to any port %s proto %s", ufw_allow_from, uValue, strings.TrimSpace(port_proto[0]), strings.TrimSpace(port_proto[1]))
+					if ufw.DeleteRule(rule); false {
+						utils.StdOutAndLog(fmt.Sprintf("Deleting the rule %s failed.", rule))
+					}
+				}
+			} else {
+				for idx := range employeePorts {
+					port_proto := strings.Split(employeePorts[idx], "/")
+					rule := fmt.Sprintf("delete %s %s to any port %s proto %s", ufw_allow_from, uValue, strings.TrimSpace(port_proto[0]), strings.TrimSpace(port_proto[1]))
+					if ufw.AddRule(rule); false {
+						utils.StdOutAndLog(fmt.Sprintf("Adding the employee rule %s failed.", rule))
+					}
+				}
 			}
 		}
 	case "cleanup":

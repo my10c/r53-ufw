@@ -191,7 +191,7 @@ func InitArgs(mode string, profile string) []string {
 	case "server":
 		actionList = "cleanup, update, listufw and listdns."
 	case "admin":
-		actionList = "add, del, mod, list, cleanup, update, listufw and listdns."
+		actionList = "add, del, mod, list, reset, cleanup, update, listufw and listdns."
 		nameInfo = "This name of the record to be created."
 		ipInfo = "The public IP to associate to the record to be created."
 	case "client":
@@ -248,6 +248,8 @@ func InitArgs(mode string, profile string) []string {
 	if mode == "admin" && errored == 0 {
 		var admin_break int = 0
 		switch myAction.value {
+		case "reset":
+			admin_break = 1
 		case "listufw":
 			admin_break = 1
 		case "listdns":
