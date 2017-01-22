@@ -265,8 +265,8 @@ func main() {
 		for aKey, aValue := range mySess.ARecords {
 			workList[aKey] = aValue
 		}
-		for _, uValue := range workList {
-			if strings.Contains(uValue, "3rd-party") {
+		for uKey, uValue := range workList {
+			if strings.Contains(uKey, "3rd-party") {
 				for idx := range thirdPartiesPorts {
 					port_proto := strings.Split(thirdPartiesPorts[idx], "/")
 					rule := fmt.Sprintf("delete %s %s to any port %s proto %s", ufw_allow_from, uValue, strings.TrimSpace(port_proto[0]), strings.TrimSpace(port_proto[1]))
@@ -294,7 +294,7 @@ func main() {
 			}
 		}
 		for uKey, uValue := range workList {
-			if strings.Contains(uValue, "3rd-party") {
+			if strings.Contains(uKey, "3rd-party") {
 				for idx := range thirdPartiesPorts {
 					port_proto := strings.Split(thirdPartiesPorts[idx], "/")
 					rule := fmt.Sprintf("delete %s %s to any port %s proto %s", ufw_allow_from, uValue, strings.TrimSpace(port_proto[0]), strings.TrimSpace(port_proto[1]))
@@ -318,9 +318,9 @@ func main() {
 		}
 	case "update":
 		ufw := ufw.New()
-		for _, aValue := range mySess.ARecords {
+		for aKey, aValue := range mySess.ARecords {
 			// 3rd party user always contain the string 3rd-party
-			if strings.Contains(aValue, "3rd-party") {
+			if strings.Contains(aKey, "3rd-party") {
 				for idx := range thirdPartiesPorts {
 					port_proto := strings.Split(thirdPartiesPorts[idx], "/")
 					rule := fmt.Sprintf("%s %s to any port %s proto %s", ufw_allow_from, aValue, strings.TrimSpace(port_proto[0]), strings.TrimSpace(port_proto[1]))
