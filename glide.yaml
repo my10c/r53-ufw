@@ -1,0 +1,20 @@
+package: .
+import:
+- package: github.com/aws/aws-sdk-go
+  version: ~1.8.19
+  subpackages:
+  - aws
+  - aws/credentials
+  - aws/session
+  - service/iam
+  - service/route53
+- package: github.com/my10c/r53-ufw
+  subpackages:
+  - help
+  - initialze
+  - r53cmds
+  - ufw
+  - utils
+- package: github.com/spf13/viper
+- package: gopkg.in/natefinch/lumberjack.v2
+  version: ~1.0.0
