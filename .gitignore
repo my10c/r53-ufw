@@ -3,5 +3,6 @@ pkg/*
 src/r53-ufw/admin/vendor/*
 src/r53-ufw/client/vendor/*
 src/r53-ufw/server/vendor/*
+src/r53-ufw/vendor/*
 vendor/*
 *swp
