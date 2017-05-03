@@ -49,7 +49,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/my10c/r53-ufw/utils"
+	"r53-ufw/utils"
 )
 
 const (

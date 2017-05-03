@@ -49,9 +49,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/my10c/r53-ufw/initialze"
-	"github.com/my10c/r53-ufw/r53cmds"
-	"github.com/my10c/r53-ufw/utils"
+	"r53-ufw/initialze"
+	"r53-ufw/r53cmds"
+	"r53-ufw/utils"
 
 	"github.com/aws/aws-sdk-go/service/route53"
 )

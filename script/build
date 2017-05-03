@@ -4,9 +4,11 @@ export GOPATH=$(pwd)
 export GOROOT=/usr/local/go
 export PATH=$PATH:$GOROOT/bin:
 
-glide install
+(cd src/r53-ufw : glide install )
+cd $GOPATH
 
-glide up
+(cd src/r53-ufw ; glide up )
+cd $GOPATH
 
 go build -i -v  -ldflags '-w -s' -o ${GOPATH}/bin/r53-ufw-client r53-ufw/client
 

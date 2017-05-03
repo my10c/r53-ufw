@@ -1,5 +1,5 @@
-hash: ef75bb679821ac982e7f7b7ff28ef717bf8f99430820701267ac4514c8c019e9
-updated: 2017-05-03T14:42:28.325588866-07:00
+hash: 7d2a324f17f2abedc91189b1f82e0731383da02d646d61829e7f53b60bab2e5f
+updated: 2017-05-03T16:07:52.891630709-07:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: 0dbc446aca87aebb6e0a24509b59bafc0e3ec0ae
@@ -50,14 +50,6 @@ imports:
   version: 51463bfca2576e06c62a8504b5c0f06d61312647
 - name: github.com/mitchellh/mapstructure
   version: cc8532a8e9a55ea36402aa21efdf403a60d34096
-- name: github.com/my10c/r53-ufw
-  version: 816bf09a5944682315d5f6c3647393fd8e971c73
-  subpackages:
-  - help
-  - initialze
-  - r53cmds
-  - ufw
-  - utils
 - name: github.com/pelletier/go-buffruneio
   version: c37440a7cf42ac63b919c752ca73a85067e05992
 - name: github.com/pelletier/go-toml
@@ -84,7 +76,7 @@ imports:
   - transform
   - unicode/norm
 - name: gopkg.in/natefinch/lumberjack.v2
-  version: 8ec9c6b748e0c75183863d208c8442319ddc5321
+  version: dd45e6a67c53f673bb49ca8a001fd3a63ceb640e
 - name: gopkg.in/yaml.v2
   version: cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b
 testImports: []
