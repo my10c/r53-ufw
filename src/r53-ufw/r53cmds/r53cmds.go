@@ -25,9 +25,9 @@
 //
 // Author		:	Luc Suryo <luc@badassops.com>
 //
-// Version		:	0.4
+// Version		:	0.5
 //
-// Date			:	Jan 17, 2917
+// Date			:	May 4, 2917
 //
 // History	:
 // 	Date:			Author:		Info:
@@ -35,7 +35,7 @@
 //	Jan 4, 2017		LIS			Re-write from Python to Go
 //	Jan 5, 2017		LIS			Added support for --debug
 //	Jan 17, 2017	LIS			Adjustment for Go style
-//
+//	May 4, 2017		LIS			SearchRecord need to set admin to allow to search everything
 
 package r53cmds
 
@@ -190,9 +190,14 @@ func (r53Sess *r53) SearchRecord(argv ...string) bool {
 	var err error
 	var recName string
 	var recType = argv[0]
-	// TXT is always search again IAM username
+	// TXT is always search again IAM username is none admin
 	if recType == route53.RRTypeTxt {
-		recName = r53Sess.IAMUserName + "." + r53Sess.ZoneName + "."
+		if r53Sess.Admin == false {
+			recName = r53Sess.IAMUserName + "." + r53Sess.ZoneName + "."
+		} else {
+			// admin mode use whatever name was given!
+			recName = r53Sess.UserName + "." + r53Sess.ZoneName + "."
+		}
 	}
 	if recType == route53.RRTypeA {
 		recName = r53Sess.UserName + "." + r53Sess.ZoneName + "."
