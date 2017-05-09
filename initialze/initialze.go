@@ -46,8 +46,8 @@ import (
 	"os"
 	"strconv"
 
-	"r53-ufw/help"
-	"r53-ufw/utils"
+	"github.com/my10c/r53-ufw/help"
+	"github.com/my10c/r53-ufw/utils"
 
 	"github.com/spf13/viper"
 

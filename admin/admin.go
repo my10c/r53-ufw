@@ -48,11 +48,11 @@ import (
 	"strconv"
 	"strings"
 
-	"r53-ufw/help"
-	"r53-ufw/initialze"
-	"r53-ufw/r53cmds"
-	"r53-ufw/ufw"
-	"r53-ufw/utils"
+	"github.com/my10c/r53-ufw/help"
+	"github.com/my10c/r53-ufw/initialze"
+	"github.com/my10c/r53-ufw/r53cmds"
+	"github.com/my10c/r53-ufw/ufw"
+	"github.com/my10c/r53-ufw/utils"
 
 	"github.com/aws/aws-sdk-go/service/route53"
 )
