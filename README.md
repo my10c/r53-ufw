@@ -262,5 +262,17 @@ Usage : r53-ufw-admin [-h] [--name=username] [--ip=ip-address] [--action=action]
 ```
 
 
+## How to build
+
+create a work directory
+then set GOPATH : export GOPATH=full-path-work-directory
+
+```
+go get github.com/my10c/r53-ufw/{admin,client,server}
+```
+
+that's it
+
+
 Enjoy
 - Momo
